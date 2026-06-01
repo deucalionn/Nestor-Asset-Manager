@@ -1,0 +1,51 @@
+schema: spec-driven
+
+context: |
+  Project: Nestor Asset Manager (NAM)
+  Type: Automated financial decision-support team powered by local Deep Agents
+
+  Target stack:
+  - Monorepo: packages/db (nam-db), api/ (nam-api), agentic/ (nam-agentic)
+  - API Module: FastAPI (async), WebSocket chat, Pydantic v2
+  - Agentic Module: LangChain Deep Agents harness (deepagents), Ollama / vLLM
+  - Shared DB: packages/db — SQLAlchemy models + Alembic (single migration history)
+  - Data hub: PostgreSQL + pgvector
+  - Frontend: TBD (API consumer)
+
+  Strict architecture:
+  - Agent is primarily AUTONOMOUS (market scheduler worker, APScheduler)
+  - Chat is optional — API imports nam-agentic in-process for WebSocket streaming
+  - Use create_deep_agent() + subagent classes — NO hand-built LangGraph StateGraph
+  - OOP-first: agents, tools, prompts as classes (no dict configs)
+  - Agents never place orders and never write to financial tables
+  - Human control via API (recommendations Pending → Applied/Rejected)
+  - Long-term semantic memory via pgvector on analyses
+
+  Reference document: openspec.md (repo root)
+  Spec language: English
+  Code language: English (all identifiers — DB columns, tables, enums, API routes, Pydantic fields, tool names, Python modules)
+  Requirement format: Requirement + Scenario (Given/When/Then)
+
+rules:
+  proposal:
+    - Reference openspec.md for architectural context
+    - Explicitly identify the affected module (API, Agentic, Frontend, Data)
+    - List impacted PostgreSQL tables
+    - State whether agents have write access (rule: never on Transaction/Position)
+  specs:
+    - Use Requirement + Scenario format (GIVEN/WHEN/THEN)
+    - Define Pydantic v2 schemas for every Tool or endpoint interface
+    - Specify enums and DB constraints (FK, unique, NOT NULL)
+    - All code identifiers MUST be in English (no French column/table/field names)
+    - Use Python Enum classes from nam_db.enums — never Literal[...] for domain values
+  design:
+    - Diagram inter-module flows via PostgreSQL
+    - Document Deep Agents setup (DeepAgentFactory, subagent classes, ToolRegistry)
+    - Document market scheduler (MarketSession, MarketPhase, APScheduler)
+    - Specify the embedding model (384 or 1024 dimensions)
+  tasks:
+    - Split work by package (packages/db/, api/, agentic/)
+    - Use OOP classes for agents, tools, prompts — never raw dict subagent configs
+    - Initialize Alembic with `alembic init -t async alembic` from packages/db/
+    - Configure alembic-postgresql-enum in env.py for native PostgreSQL ENUM migrations
+    - Separate Alembic migrations, SQLAlchemy models, Pydantic schemas, tool classes

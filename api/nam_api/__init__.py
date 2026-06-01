@@ -1,0 +1,1 @@
+"""NAM FastAPI application."""

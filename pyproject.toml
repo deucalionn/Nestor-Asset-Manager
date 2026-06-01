@@ -1,0 +1,28 @@
+[project]
+name = "nam"
+version = "0.1.0"
+description = "Nestor Asset Manager — uv workspace root"
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "mypy>=1.13",
+]
+
+[tool.uv.workspace]
+members = ["packages/db", "api", "agentic"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["UP042"]  # openspec uses class Foo(str, Enum) pattern
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages/db", "api", "agentic"]

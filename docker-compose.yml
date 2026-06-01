@@ -1,0 +1,15 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nam
+      POSTGRES_PASSWORD: nam
+      POSTGRES_DB: nam
+    volumes:
+      - nam_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+
+volumes:
+  nam_pgdata:

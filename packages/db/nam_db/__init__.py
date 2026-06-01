@@ -1,0 +1,1 @@
+"""NAM shared database package."""
