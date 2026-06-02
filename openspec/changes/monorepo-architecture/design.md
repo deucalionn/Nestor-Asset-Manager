@@ -128,7 +128,7 @@ factory.py              → DeepAgentFactory
 runner.py               → AgentRunner
 ```
 
-`BaseSubAgent.to_spec()` is the **only** place that produces a dict — it's the adapter boundary to `create_deep_agent(subagents=[...])`.
+`BaseSubAgent.to_spec()` is the **only** adapter to Deep Agents — it returns a typed `SubAgent(...)` spec for `create_deep_agent(subagents=[...])`.
 
 **Alternatives considered**:
 - *Raw dict subagent configs* — rejected per openspec.md OOP convention

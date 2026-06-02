@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from deepagents import SubAgent
 from langchain_core.tools import BaseTool
 
 from nam_agentic.prompts.loader import PromptLoader
@@ -33,11 +34,11 @@ class BaseSubAgent(ABC):
     def system_prompt(self) -> str:
         return self._prompt_loader.load(self.prompt_file)
 
-    def to_spec(self) -> dict:
-        """Convert to Deep Agents subagent spec."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "system_prompt": self.system_prompt(),
-            "tools": self.tools(),
-        }
+    def to_spec(self) -> SubAgent:
+        """Convert to Deep Agents declarative subagent spec."""
+        return SubAgent(
+            name=self.name,
+            description=self.description,
+            system_prompt=self.system_prompt(),
+            tools=self.tools(),
+        )

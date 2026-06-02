@@ -88,7 +88,7 @@ The user retains **final control**: every recommendation stays in `Pending` stat
 | **Specs language** | English |
 | **Conversation** | French (team communication) |
 | **Paradigm** | OOP-first — agents, tools, and schedulers are **classes**; system prompts are **markdown files** |
-| **No dict configs** | Subagent definitions MUST NOT be raw dicts passed to `create_deep_agent`; use class-based specs with a `to_spec()` method |
+| **No dict configs** | Subagent specs MUST use `SubAgent(...)` (Deep Agents `TypedDict`), built via class `to_spec()` — not untyped dict literals |
 | **Enums everywhere** | Domain values MUST use Python `Enum` classes from `nam_db.enums` — never `Literal[...]` string unions |
 | **DB/Python parity** | Every PostgreSQL enum MUST have a matching Python enum with identical member values |
 | **Separation** | SQLAlchemy models ≠ Pydantic schemas; ORM in `packages/db`, HTTP schemas in `api/`, Tool schemas in `agentic/` |
@@ -862,11 +862,18 @@ MarketSession                  ← dataclass for market hours
 
 ```python
 from abc import ABC, abstractmethod
+
+from deepagents import SubAgent
 from langchain_core.tools import BaseTool
+
+from nam_agentic.prompts.loader import PromptLoader
 
 
 class BaseSubAgent(ABC):
     """Base class for all NAM subagents."""
+
+    def __init__(self, prompt_loader: PromptLoader | None = None) -> None:
+        self._prompt_loader = prompt_loader or PromptLoader()
 
     @property
     @abstractmethod
@@ -890,14 +897,14 @@ class BaseSubAgent(ABC):
     def system_prompt(self) -> str:
         return self._prompt_loader.load(self.prompt_file)
 
-    def to_spec(self) -> dict:
-        """Convert to Deep Agents subagent spec."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "system_prompt": self.system_prompt(),
-            "tools": self.tools(),
-        }
+    def to_spec(self) -> SubAgent:
+        """Convert to Deep Agents declarative subagent spec."""
+        return SubAgent(
+            name=self.name,
+            description=self.description,
+            system_prompt=self.system_prompt(),
+            tools=self.tools(),
+        )
 ```
 
 ### 8.4 Sector analyst implementation
@@ -963,7 +970,11 @@ class PortfolioManagerAgent:
 ### 8.6 Deep agent factory
 
 ```python
-from deepagents import create_deep_agent
+from deepagents import SubAgent, create_deep_agent
+from langgraph.graph.state import CompiledStateGraph
+from typing import Any
+
+CompiledDeepAgent = CompiledStateGraph[Any, Any, Any, Any]
 
 
 class DeepAgentFactory:
@@ -979,12 +990,13 @@ class DeepAgentFactory:
         self._pm = portfolio_manager
         self._subagents = subagents
 
-    def build(self):
+    def build(self) -> CompiledDeepAgent:
+        subagent_specs: list[SubAgent] = [agent.to_spec() for agent in self._subagents]
         return create_deep_agent(
             model=self._model,
             system_prompt=self._pm.system_prompt(),
             tools=self._pm.tools(),
-            subagents=[agent.to_spec() for agent in self._subagents],
+            subagents=subagent_specs,
         )
 ```
 
@@ -1034,19 +1046,28 @@ class CreateAnalysisTool(BaseNamTool):
 ### 8.9 Agent runner
 
 ```python
+from collections.abc import AsyncIterator
+from typing import Any
+
+from nam_agentic.context import NamRuntimeContext
+from nam_agentic.factory import CompiledDeepAgent, DeepAgentFactory
+
+
 class AgentRunner:
     """Thin wrapper around the compiled Deep Agent graph."""
 
     def __init__(self, factory: DeepAgentFactory) -> None:
-        self._agent = factory.build()
+        self._agent: CompiledDeepAgent = factory.build()
 
-    async def invoke(self, message: str, context: NamRuntimeContext) -> dict:
+    async def invoke(self, message: str, context: NamRuntimeContext) -> dict[str, Any]:
         return await self._agent.ainvoke(
             {"messages": [{"role": "user", "content": message}]},
             context=context,
         )
 
-    async def stream(self, message: str, context: NamRuntimeContext):
+    async def stream(
+        self, message: str, context: NamRuntimeContext
+    ) -> AsyncIterator[dict[str, Any]]:
         async for chunk in self._agent.astream(
             {"messages": [{"role": "user", "content": message}]},
             context=context,
