@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 
 from nam_db.settings import settings as db_settings
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    default_user_id: UUID | None = None
 
     @property
     def database_url(self) -> str:
