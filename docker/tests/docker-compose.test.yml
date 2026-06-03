@@ -1,0 +1,28 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: nam
+      POSTGRES_PASSWORD: nam
+      POSTGRES_DB: nam_test
+    volumes:
+      - nam_test_pgdata:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nam -d nam_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: docker/tests/Dockerfile.test
+    env_file:
+      - ../../.env.test
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  nam_test_pgdata:

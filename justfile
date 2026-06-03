@@ -18,5 +18,11 @@ api:
 worker:
     uv run python -m nam_agentic.scheduler.worker
 
+test:
+    docker compose -f docker/tests/docker-compose.test.yml up --build --abort-on-container-exit --remove-orphans
+
+test-down:
+    docker compose -f docker/tests/docker-compose.test.yml down -v --remove-orphans
+
 lint:
     uv run ruff check .
