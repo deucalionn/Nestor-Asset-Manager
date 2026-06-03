@@ -1138,18 +1138,36 @@ source = { editable = "agentic" }
 dependencies = [
     { name = "apscheduler" },
     { name = "deepagents" },
+    { name = "fastapi" },
     { name = "langchain-ollama" },
     { name = "nam-db" },
     { name = "pydantic-settings" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.10" },
     { name = "deepagents", specifier = ">=0.1" },
+    { name = "fastapi", specifier = ">=0.115" },
     { name = "langchain-ollama", specifier = ">=0.3" },
     { name = "nam-db", editable = "packages/db" },
     { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
 ]
 
 [[package]]
@@ -1158,19 +1176,31 @@ version = "0.1.0"
 source = { editable = "api" }
 dependencies = [
     { name = "fastapi" },
-    { name = "nam-agentic" },
+    { name = "httpx" },
     { name = "nam-db" },
     { name = "pydantic-settings" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "nam-agentic", editable = "agentic" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "nam-db", editable = "packages/db" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
 ]
 
 [[package]]

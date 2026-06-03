@@ -3,8 +3,8 @@
 Autonomous financial decision-support platform built as a uv monorepo with three Python packages:
 
 - **nam-db** — shared SQLAlchemy models, enums, Alembic migrations
-- **nam-agentic** — Deep Agents harness, tools, market scheduler worker
-- **nam-api** — FastAPI REST + WebSocket entry point
+- **nam-agentic** — always-on agent runtime (FastAPI), Deep Agents, APScheduler market jobs
+- **nam-api** — user-facing FastAPI REST (WebSocket chat deferred)
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ uv sync --all-packages
 Use commands through uv so they run inside `.venv`:
 
 ```bash
-uv run uvicorn nam_api.main:app --reload   # see cheat sheet below for worker, etc.
+uv run uvicorn nam_api.main:app --reload   # see cheat sheet below for agentic, etc.
 ```
 
 **IDE (Cursor / VS Code):** select the interpreter  
@@ -55,11 +55,9 @@ docker compose up -d
 # 4. Run migrations (once database-schema change adds tables)
 uv run --directory packages/db alembic upgrade head
 
-# 5. Start the API
+# 5–6. Start API + agent runtime (or: just dev)
 uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
-
-# 6. Start the scheduler worker (separate terminal)
-uv run python -m nam_agentic.scheduler.worker
+uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### Command cheat sheet (without `just`)
@@ -70,13 +68,26 @@ uv run python -m nam_agentic.scheduler.worker
 | Start DB | `docker compose up -d` |
 | Stop DB | `docker compose down` |
 | Migrations | `uv run --directory packages/db alembic upgrade head` |
+| Tests (API, all) | `just test` |
 | API | `uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000` |
-| Worker | `uv run python -m nam_agentic.scheduler.worker` |
+| Agent runtime | `uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001` |
 | Lint | `uv run ruff check .` |
 
-With [just](https://github.com/casey/just) installed: `just sync`, `just up`, `just api`, etc.
+With [just](https://github.com/casey/just) installed: `just sync`, `just dev`, `just api`, etc.
 
-Verify the API: `curl http://localhost:8000/health` → `{"status":"ok"}`
+**Full local stack:** `just dev` starts Postgres (Docker), runs migrations, then API + agent runtime in parallel. `Ctrl+C` stops both apps; run `just down` to stop the DB.
+
+Verify: `curl http://localhost:8000/health` and `curl http://localhost:8001/health`
+
+First-run setup (once):
+
+```bash
+curl -X POST http://localhost:8000/setup \
+  -H 'Content-Type: application/json' \
+  -d '{"firstname":"Lucas","date_of_birth":"1990-01-15","strategy":"BALANCED","goals":"Retire early"}'
+```
+
+Then portfolio routes work without `user_id` in the URL: `/transactions`, `/positions`. The agent uses `DEFAULT_USER_ID` from `.env` — set it to match the profile `id` returned by `/setup` if you want a stable UUID.
 
 ## pgvector
 
@@ -86,11 +97,11 @@ The `vector` extension is created automatically when PostgreSQL starts for the f
 
 ```text
 packages/db/   → nam_db (shared kernel)
-agentic/       → nam_agentic (Deep Agents + scheduler)
-api/           → nam_api (FastAPI)
+agentic/       → nam_agentic (FastAPI agent runtime + Deep Agents)
+api/           → nam_api (user REST API)
 ```
 
-Dependency direction: `nam-db` ← `nam-agentic` ← `nam-api`
+Dependency direction: `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (sibling services; API notifies agentic via HTTP)
 
 ## Alembic
 
@@ -103,6 +114,19 @@ uv run --directory packages/db alembic upgrade head
 
 Alembic uses the async template and reads `DATABASE_URL` from `nam_db.settings`.
 
+## Tests
+
+All API tests (unit + services + routes) run in Docker against PostgreSQL (pgvector):
+
+```bash
+just test        # alembic upgrade head + pytest api/tests
+just test-down   # tear down test containers and volumes
+```
+
+One command — no separate local pytest for portfolio tests.
+
+The test-runner applies Alembic migrations once, then each test truncates portfolio tables (schema stays, data is reset).
+
 ## Development
 
 ```bash
@@ -112,10 +136,10 @@ just down    # or: docker compose down
 
 ## Roadmap
 
-1. `monorepo-architecture` — skeleton (this change)
-2. `database-schema` — ORM models + initial migration
-3. `deep-agent-core` — working tools + DeepAgentFactory
-4. `market-scheduler` — live APScheduler triggers
-5. `api-crud` — REST endpoints
+1. `monorepo-architecture` — skeleton ✓
+2. `api-portfolio-core` — portfolio CRUD + Docker tests ✓
+3. `agent-runtime-service` — agentic FastAPI + event bus + scheduler ✓
+4. **Deep agent (hand-owned)** — wire `EventHandler` → `AgentRunner`, implement agents/subagents/tools
+5. **Chat proxy (optional)** — API WebSocket → `chat.message` events
 
 See `openspec.md` for the full specification.
