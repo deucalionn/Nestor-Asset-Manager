@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     embedding_dim: int = 384
     default_user_id: str = "00000000-0000-0000-0000-000000000001"
     market_timezone: str = "Europe/Paris"
+    agentic_host: str = "0.0.0.0"
+    agentic_port: int = 8001
+    agent_workspace_dir: Path = _ROOT_DIR / "data" / "agent_workspace"
 
 
 settings = Settings()

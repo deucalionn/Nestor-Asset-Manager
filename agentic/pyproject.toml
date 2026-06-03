@@ -1,7 +1,7 @@
 [project]
 name = "nam-agentic"
 version = "0.1.0"
-description = "NAM Deep Agents harness, tools, and market scheduler"
+description = "NAM agent runtime — FastAPI service, Deep Agents, market scheduler"
 requires-python = ">=3.12"
 dependencies = [
     "nam-db",
@@ -9,6 +9,15 @@ dependencies = [
     "langchain-ollama>=0.3",
     "apscheduler>=3.10",
     "pydantic-settings>=2.6",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
 ]
 
 [build-system]
