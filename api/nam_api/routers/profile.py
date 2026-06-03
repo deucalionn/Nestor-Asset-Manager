@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nam_api.dependencies import get_db_session, get_user_service
 from nam_api.schemas.user import UserCreate, UserRead, UserUpdate
+from nam_api.services.agentic_client import emit_agent_event
 from nam_api.services.user_service import UserService
 from nam_api.settings import settings
 
@@ -18,6 +19,7 @@ async def setup_profile(
 ) -> UserRead:
     user = await service.setup(session, body, user_id=settings.default_user_id)
     await session.commit()
+    await emit_agent_event("user.profile.created", user_id=user.id)
     return user
 
 
@@ -37,4 +39,5 @@ async def update_profile(
 ) -> UserRead:
     user = await service.update_profile(session, body)
     await session.commit()
+    await emit_agent_event("user.profile.updated", user_id=user.id)
     return user

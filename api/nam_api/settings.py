@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    agentic_url: str = "http://localhost:8001"
     default_user_id: UUID | None = None
 
     @property
