@@ -13,8 +13,9 @@ context: |
   - Frontend: TBD (API consumer)
 
   Strict architecture:
-  - Agent is primarily AUTONOMOUS (market scheduler worker, APScheduler)
-  - Chat is optional — API imports nam-agentic in-process for WebSocket streaming
+  - Agent is primarily AUTONOMOUS — nam-agentic FastAPI (:8001) with APScheduler in app lifespan
+  - nam-api (:8000) notifies agentic via HTTP POST /events (no in-process import)
+  - Agent runtime skeleton complete (agent-runtime-service); Deep Agent graph, subagents, and tools are hand-implemented
   - Use create_deep_agent() + subagent classes — NO hand-built LangGraph StateGraph
   - OOP-first: agents, tools, prompts as classes (no dict configs)
   - Agents never place orders and never write to financial tables

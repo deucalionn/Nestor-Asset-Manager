@@ -1,0 +1,3 @@
+name: agent-runtime-service
+description: nam-agentic as standalone FastAPI service with APScheduler and HTTP event bus from nam-api
+status: complete

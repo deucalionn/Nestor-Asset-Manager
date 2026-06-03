@@ -1,9 +1,9 @@
 # Nestor Asset Manager (NAM) — OpenSpec
 
-> **Version**: 0.2.0-draft  
-> **Status**: Initial design — no implementation yet  
+> **Version**: 0.2.0  
+> **Status**: Partial implementation — portfolio API + agent runtime skeleton  
 > **Standard**: OpenSpec (Fission-AI) — master reference document  
-> **Last updated**: 2026-06-01
+> **Last updated**: 2026-06-03
 
 ---
 
@@ -50,8 +50,8 @@ The user retains **final control**: every recommendation stays in `Pending` stat
 ### 1.3 Scope (included)
 
 - **Monorepo** with shared `packages/db` (SQLAlchemy models + Alembic)
-- **API module** — async FastAPI: auth, financial CRUD, WebSocket chat, recommendation management
-- **Agentic module** — Deep Agents harness: PM + subagents, custom tools, market scheduler worker
+- **API module** — async FastAPI: financial CRUD, first-run user setup, WebSocket chat, recommendation management
+- **Agentic module** — always-on FastAPI service (`nam-agentic`): Deep Agents harness, event bus, APScheduler market jobs in app lifespan
 - **PostgreSQL + pgvector**: structured data + embeddings
 - **Frontend** (API consumer): functional scope defined, implementation deferred
 - Pydantic v2 schemas for all Tool and API interfaces
@@ -61,8 +61,9 @@ The user retains **final control**: every recommendation stays in `Pending` stat
 
 - Order execution on real brokers (IBKR, Binance, etc.)
 - Direct agent writes to `Transaction` or `Position`
-- Enterprise OAuth / SSO (simple auth in v1)
-- Multi-tenant / concurrent multi-user (one active user per agent session in v1)
+- Enterprise OAuth / SSO
+- Authentication / login (local single-user side project — see §1.6)
+- Multi-tenant / concurrent multi-user (one human user per deployment in v1)
 - Automated quantitative backtesting
 - Managed cloud deployment (local/on-prem infra in v1)
 - Hand-built LangGraph routing graphs (use Deep Agents harness instead)
@@ -71,16 +72,27 @@ The user retains **final control**: every recommendation stays in `Pending` stat
 
 | Actor | Role |
 |-------|------|
-| **User (human PM)** | Validates or rejects recommendations, records transactions, optionally chats with the agent |
+| **User (human PM)** | Validates or rejects recommendations, records transactions, optionally chats with the agent — **the only user** in a v1 deployment |
 | **Portfolio Manager (Deep Agent)** | Main agent — orchestrates subagents via `task()`, creates recommendations |
 | **Sector Analyst (subagent)** | Analyzes individual equities |
 | **Macro Strategist (subagent)** | Analyzes macroeconomic and geopolitical context |
 | **ETF & Quant Specialist (subagent)** | Analyzes indices and passive instruments |
-| **Market Scheduler (worker)** | Triggers the Deep Agent at market session times |
-| **API Module** | HTTP/WS entry point, persistence, access control |
+| **Market Scheduler (agent runtime)** | APScheduler inside `nam-agentic` FastAPI — triggers Deep Agent at market session times |
+| **API Module** | HTTP/WS entry point, persistence (no auth in v1) |
 | **PostgreSQL** | Data bus, structured and vector memory |
 
-### 1.6 Code conventions
+### 1.6 Deployment model (v1)
+
+NAM is a **local / self-hosted side project**: one person runs API + agent + Postgres on their machine (or a single VM). There is **no authentication layer**.
+
+- **One user max** per database — the `users` table holds a single profile row after first-run setup.
+- **First-run setup** initializes profile fields (`firstname`, `date_of_birth`, `strategy`, `goals`). Portfolio and agent runtime read that row via `DEFAULT_USER_ID` (env) or equivalent singleton lookup.
+- **No login, no JWT, no multi-tenant isolation** — trust boundary is physical access to the host.
+- Routes may still expose `user_id` for REST clarity during v1; the value is always the configured singleton user. A future refactor may drop `user_id` from URLs once setup is stable.
+
+**Non-goal:** fastapi-users, register/login, or per-request auth middleware in v1.
+
+### 1.7 Code conventions
 
 | Rule | Detail |
 |------|--------|
@@ -124,18 +136,25 @@ nam/
 │               └── recommendation.py
 │
 ├── api/
-│   ├── pyproject.toml             # depends: nam-db, nam-agentic (chat)
+│   ├── pyproject.toml             # depends: nam-db only (HTTP to agentic)
 │   └── nam_api/
 │       ├── main.py
 │       ├── routers/
-│       ├── services/              # business logic (position recalc, reco feedback)
+│       ├── services/              # business logic + agentic_client (HTTP events)
 │       ├── schemas/               # Pydantic HTTP request/response
-│       └── websocket/
-│           └── chat.py            # in-process Deep Agent streaming
+│       └── websocket/             # (future) chat proxy → nam-agentic
 │
 └── agentic/
     ├── pyproject.toml             # depends: nam-db
     └── nam_agentic/
+        ├── main.py                # FastAPI app — lifespan starts APScheduler
+        ├── routers/
+        │   ├── health.py
+        │   └── events.py          # POST /events — event bus entry point
+        ├── schemas/
+        │   └── events.py
+        ├── services/
+        │   └── event_handler.py   # routes events → AgentRunner
         ├── factory.py             # DeepAgentFactory — builds the compiled graph
         ├── runner.py              # AgentRunner — invoke/stream wrapper
         ├── agents/                # OOP agent definitions
@@ -156,7 +175,7 @@ nam/
         │   └── market/
         ├── scheduler/
         │   ├── markets.py         # MarketSession definitions (EU/US/ASIA)
-        │   └── worker.py          # APScheduler → AgentRunner
+        │   └── scheduler.py       # register_market_jobs → internal events
         ├── context.py             # NamRuntimeContext dataclass
         └── enums.py               # Market, MarketPhase (runtime-only)
 ```
@@ -166,14 +185,16 @@ nam/
 ```text
 packages/db  ◄───  api
      ▲
-     └──────────  agentic  ◄───  api (chat only — in-process import)
+     └──────────  agentic
+
+api ──HTTP POST /events──► agentic   (no Python import edge)
 ```
 
 | Package | Depends on | Provides |
 |---------|------------|----------|
 | `nam-db` | — | SQLAlchemy models, Alembic migrations, async session |
-| `nam-agentic` | `nam-db` | Deep Agent factory, tools, scheduler worker |
-| `nam-api` | `nam-db`, `nam-agentic` | REST + WebSocket, business services |
+| `nam-agentic` | `nam-db` | Agent runtime FastAPI, Deep Agent factory, tools, APScheduler |
+| `nam-api` | `nam-db` | User REST, business services, HTTP notifications to agentic |
 
 ### 2.3 Shared database rules
 
@@ -197,12 +218,14 @@ configure()
 ### 2.4 Runtime processes
 
 ```bash
-# Process 1 — API (REST + WebSocket chat)
-uvicorn nam_api.main:app
+# Process 1 — User API (REST; WebSocket chat proxy deferred)
+uvicorn nam_api.main:app --port 8000
 
-# Process 2 — Autonomous scheduler (runs 24/7)
-python -m nam_agentic.scheduler.worker
+# Process 2 — Agent runtime (always-on: events + market scheduler)
+uvicorn nam_agentic.main:app --port 8001
 ```
+
+Both processes MUST be running for full behaviour: portfolio CRUD works with API alone; onboarding interpretation, market briefs, and chat require agentic.
 
 ---
 
@@ -213,16 +236,17 @@ python -m nam_agentic.scheduler.worker
 ```text
                          AUTONOMOUS (primary)
                          ════════════════════
-┌──────────────┐    invoke     ┌──────────────────┐
-│  Scheduler   │──────────────►│   Deep Agent     │
-│  (worker)    │               │  PM + subagents  │
-└──────────────┘               └────────┬─────────┘
-                                        │
-                              tools + writes
-                                        ▼
+┌──────────────────┐  cron (lifespan)  ┌──────────────────┐
+│  nam-agentic     │──────────────────►│   Deep Agent     │
+│  FastAPI :8001   │  POST /events     │  PM + subagents  │
+│  APScheduler     │◄──────────────────│                  │
+└────────┬─────────┘  user/chat events └────────┬─────────┘
+         │                                        │
+         │                              tools + writes
+         │                                        ▼
 ┌─────────────┐   REST/WS    ┌──────────────────┐     ┌──────────────────┐
-│  Frontend   │◄───────────►│   API Module     │────►│  Deep Agent      │
-│             │              │   (FastAPI)      │chat │  (in-process)    │
+│  Frontend   │◄───────────►│   nam-api :8000  │────►│  HTTP /events    │
+│             │              │   (FastAPI)      │     │  → agentic       │
 └─────────────┘              └────────┬─────────┘     └──────────────────┘
                                       │
                             SQLAlchemy │ async
@@ -238,19 +262,22 @@ python -m nam_agentic.scheduler.worker
                               ┌───────┴────────┐
                               │  Agentic tools │
                               └────────────────┘
+
+Agent workspace (USER_GOALS.md, etc.) — volume owned by nam-agentic, not served by API
 ```
 
 ### 3.2 Architectural principles
 
 | Principle | Description | Consequence |
 |-----------|-------------|-------------|
-| **Autonomous first** | Agent observes markets on schedule without user action | Scheduler worker is a core process, not an optional add-on |
+| **Autonomous first** | Agent observes markets on schedule without user action | APScheduler runs inside `nam-agentic` FastAPI lifespan — not a separate worker |
 | **Shared DB, shared models** | Single PostgreSQL + single `nam-db` package | One Alembic, one source of schema truth |
 | **Agent read/write separation** | Agents write only `Analysis` and `Recommendation` | `Transaction`/`Position` reserved for API services |
-| **Ledger immutability** | `Transaction` is append-only | Corrections via compensating transactions |
+| **Ledger via API CRUD** | `Transaction` rows are mutable via `TransactionService` (create/update/delete); positions are always recalculated from the full ledger | Agents never write transactions |
 | **Human-in-the-loop via API** | `Pending → Applied/Rejected` only through API | Agents always create recommendations as `Pending` |
 | **Deep Agents harness** | Use `create_deep_agent` + subagents, not hand-built graphs | PM delegates via built-in `task()` tool |
-| **Chat is optional** | Same Deep Agent, different trigger | API imports `nam-agentic` in-process for WebSocket streaming |
+| **Sibling services** | API and agentic deploy independently | Coupling via PostgreSQL + HTTP event bus (`POST /events`) |
+| **Chat is optional** | Same Deep Agent, different trigger | Future: API WebSocket proxies `chat.message` events to agentic |
 | **OOP modularity** | Agents and tools as classes; prompts as markdown | Testable code, editable prompts without redeploy |
 
 ### 3.3 Table access matrix
@@ -259,7 +286,7 @@ python -m nam_agentic.scheduler.worker
 |-------|:----------:|:--------------:|
 | `users` | R/W | R |
 | `indices` | R/W | R |
-| `transactions` | R/W (append) | **—** |
+| `transactions` | R/W (CRUD + position recalc) | **—** |
 | `positions` | R/W (snapshot) | R |
 | `analyses` | R | R/W |
 | `recommendations` | R/W (status, comment) | R/W (create Pending) |
@@ -268,17 +295,27 @@ python -m nam_agentic.scheduler.worker
 
 | Pattern | Trigger | Execution | Use case |
 |---------|---------|-------------|----------|
-| **Scheduled** | APScheduler at market times | Worker → `AgentRunner.invoke()` | Autonomous market briefs/checks |
-| **Chat** | User WebSocket message | API → `AgentRunner.stream()` in-process | Optional conversation |
-| **Manual** | `POST /users/{id}/trigger-analysis` | Worker or in-process (v1: in-process OK) | On-demand full analysis |
+| **Scheduled** | APScheduler in agentic lifespan | Cron → `market.session` event → `EventHandler` → `AgentRunner` | Autonomous market briefs/checks |
+| **Profile** | `POST /setup`, `PUT /profile` | API → HTTP `user.profile.*` event → agentic | Onboarding, goals interpretation → workspace files |
+| **Chat** | User WebSocket message (future) | API → HTTP `chat.message` event → agentic | Optional conversation |
+| **Manual** | `POST /trigger-analysis` (future) | API → HTTP event → agentic | On-demand full analysis |
 
 **Data flow (autonomous cycle)**:
-1. Scheduler fires at market time (e.g. EU pre-open −10 min)
-2. `AgentRunner` invokes Deep Agent with `NamRuntimeContext(market=Market.EU, phase=MarketPhase.PRE_OPEN)`
+1. APScheduler fires at market time inside `nam-agentic` (e.g. EU pre-open −10 min)
+2. Scheduler enqueues `market.session` event; `EventHandler` invokes Deep Agent with `NamRuntimeContext(market=Market.EU, phase=MarketPhase.PRE_OPEN)`
 3. PM calls `write_todos`, delegates to subagents via `task()`, synthesizes
 4. Subagents call `create_analysis` → PostgreSQL + pgvector
 5. PM calls `create_recommendation` → status `Pending`
 6. Frontend polls API for new recommendations
+
+**Event bus contract** (`POST /events` on nam-agentic):
+
+| Event type | Payload | Source |
+|------------|---------|--------|
+| `user.profile.created` | optional fields | nam-api after setup |
+| `user.profile.updated` | optional fields | nam-api after profile update |
+| `chat.message` | `thread_id`, `content` | nam-api WebSocket (future) |
+| `market.session` | `market`, `phase` | APScheduler |
 
 ### 3.5 Technology stack
 
@@ -490,7 +527,7 @@ class MarketPhase(str, Enum):
 |--------|------|-------------|-------------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Identifier |
 | `firstname` | VARCHAR(100) | NOT NULL | First name |
-| `age` | INTEGER | NOT NULL, CHECK (age >= 18) | Age |
+| `date_of_birth` | DATE | NOT NULL | Date of birth — age computed at runtime |
 | `strategy` | strategy_enum | NOT NULL | Risk profile |
 | `goals` | TEXT | NOT NULL | Financial goals (free text) |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
@@ -505,7 +542,7 @@ class MarketPhase(str, Enum):
 | `isin` | VARCHAR(12) | NOT NULL, UNIQUE | ISIN code |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 
-#### 4.3.3 `transactions` (Ledger — immutable)
+#### 4.3.3 `transactions`
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -519,7 +556,7 @@ class MarketPhase(str, Enum):
 | `fees` | NUMERIC(18,6) | NULL, CHECK (fees >= 0) | Optional fees |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Record timestamp |
 
-**Rule**: no UPDATE/DELETE — corrections via compensating transaction.
+**Rule**: the API owns transaction CRUD via `TransactionService`. After any create, update, or delete, `PositionService` replays the ledger for affected `(user_id, index_id)` pairs. Agents MUST NOT write to this table.
 
 #### 4.3.4 `positions` (Snapshot)
 
@@ -575,14 +612,20 @@ Every PostgreSQL enum MUST have a matching Python `Enum` in `nam_db/enums.py` wi
 - THEN the value persisted in `analyses.agent` is `AgentRole.SECTOR_ANALYST`
 - AND the Python type is `AgentRole`, not a plain string
 
-#### Requirement: Ledger immutability
-The system MUST forbid modification or deletion of a `transactions` row.
+#### Requirement: Transaction CRUD with position recalculation
+The API MUST support create, update, and delete of `transactions` rows via `TransactionService`. Each mutation MUST trigger position recalculation from the full ledger for the affected user/index pair(s). Agents MUST NOT modify `transactions`.
 
-##### Scenario: Correction attempt
-- GIVEN a recorded transaction with an incorrect price
-- WHEN the API receives a correction request
-- THEN a new compensating transaction is created
-- AND the original transaction remains unchanged
+##### Scenario: Update transaction price
+- GIVEN a recorded BUY transaction
+- WHEN `TransactionService.update` changes the price
+- THEN the transaction row is updated in place
+- AND the user's position for that index is recalculated from the full ledger
+
+##### Scenario: Delete transaction
+- GIVEN a recorded transaction
+- WHEN `TransactionService.delete` removes it
+- THEN the row no longer exists
+- AND positions are recalculated from the remaining ledger
 
 #### Requirement: Analysis vectorization
 Every `Analysis` created by the Agentic module MUST include a `content_embedding` computed before persistence.
@@ -608,28 +651,30 @@ The system MUST support cosine similarity search on `analyses.content_embedding`
 
 ### 5.1 Responsibilities
 
-- Authentication and authorization
+- First-run **user profile setup** (singleton — see §1.6)
 - Async REST endpoints for the Frontend
-- WebSocket chat — in-process `AgentRunner.stream()` (optional user channel)
+- **HTTP notifications to nam-agentic** after profile setup/update (`POST /events` on agent runtime)
+- WebSocket chat — **future**: API proxies `chat.message` events to nam-agentic (not in-process)
 - CRUD for `User`, `Index`, `Transaction`, `Position`
 - Read `Analysis`, manage `Recommendation` (user feedback)
 - Recalculate `Position` snapshot after each transaction
-- On-demand analysis trigger (`POST /users/{id}/trigger-analysis`)
+- On-demand analysis trigger — **future**: API emits event to nam-agentic (`POST /trigger-analysis`)
 
 ### 5.2 Planned endpoints (v1)
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/health` | Healthcheck |
-| GET/PUT | `/users/{id}` | User profile |
+| POST | `/setup` | First-run user profile (singleton, once) |
+| GET/PUT | `/profile` | Read/update the configured user |
 | GET/POST | `/indices` | Index catalog |
-| GET/POST | `/users/{id}/transactions` | Ledger |
-| GET | `/users/{id}/positions` | Portfolio snapshot |
-| GET | `/users/{id}/analyses` | Analysis list |
-| GET | `/users/{id}/recommendations` | Recommendation list |
+| GET/POST/PUT/DELETE | `/transactions` | Ledger (singleton user) |
+| GET | `/positions` | Portfolio snapshot |
+| GET | `/analyses` | Analysis list (future) |
+| GET | `/recommendations` | Recommendation list (future) |
 | PATCH | `/recommendations/{id}` | Applied/Rejected + comment |
-| POST | `/users/{id}/trigger-analysis` | On-demand analysis |
-| WS | `/ws/chat/{user_id}` | Optional chat with Deep Agent |
+| POST | `/trigger-analysis` | On-demand analysis (future) |
+| WS | `/ws/chat` | Optional chat — proxies to nam-agentic `chat.message` event (future) |
 
 ### 5.3 API Pydantic schemas (excerpts)
 
@@ -650,9 +695,14 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     firstname: str
-    age: int = Field(ge=18)
+    date_of_birth: date
     strategy: Strategy
     goals: str
+
+    @computed_field
+    @property
+    def age(self) -> int:
+        ...
 
 
 class TransactionCreate(BaseModel):
@@ -683,19 +733,29 @@ Deep Agents is LangChain's **agent harness** built on LangGraph. Instead of hand
 | Subagent delegation | `task` | PM → Sector / Macro / ETF analysts |
 | Context management | Virtual filesystem + compression | Long analysis sessions |
 | Custom tools | User-defined | Portfolio, market, DB tools |
-| Streaming | LangGraph `.stream()` | WebSocket chat |
+| Streaming | LangGraph `.stream()` | WebSocket chat via nam-agentic (future) |
 | Runtime context | Per-invoke context propagation | `market`, `phase`, `user_id` |
 
 Reference: [Deep Agents overview](https://docs.langchain.com/oss/python/deepagents/overview)
 
 ### 6.2 Responsibilities
 
+**Implemented (skeleton):**
+
+- Expose **agent runtime HTTP API** (`GET /health`, `POST /events`)
+- Run **APScheduler inside FastAPI lifespan** for market session cron triggers
+- Route inbound events via `EventHandler` (stub hooks — wire to `AgentRunner` when implementing agents)
+- Maintain **agent workspace directory** on disk (`AGENT_WORKSPACE_DIR`)
+
+**To implement (hand-owned — agents, subagents, tools):**
+
 - Build and run the Deep Agent graph via `DeepAgentFactory`
-- Execute autonomous market observation cycles (scheduler worker)
-- Serve chat requests via `AgentRunner` (imported by API)
-- Invoke custom Tool classes (portfolio, market data, DB writes)
+- Wire `EventHandler` → `AgentRunner.invoke()` / `stream()` per event type
+- Custom Tool classes (portfolio, market data, DB writes)
 - Produce vectorized `Analysis` records and `Recommendation` records (`Pending`)
-- **Prohibited**: writes to `Transaction`/`Position`, order execution
+- Write structured workspace files (`USER_GOALS.md`, etc.) from agent runs — not from API
+
+**Prohibited:** writes to `Transaction`/`Position`, order execution
 
 ### 6.3 Execution model
 
@@ -783,14 +843,21 @@ For each market session (EU, US, ASIA):
 ### 7.5 Scheduler architecture
 
 ```text
-MarketScheduler
+nam_agentic.main (FastAPI lifespan)
       │
-      │ reads MarketSession configs
+      │ start AsyncIOScheduler
+      ▼
+register_market_jobs(scheduler, callback)
+      │
+      │ reads MarketSession configs from markets.py
       │ computes cron triggers from open/close times
       ▼
 APScheduler (AsyncIOScheduler)
       │
       │ at each trigger
+      ▼
+EventHandler.handle(AgentEvent(type=market.session, ...))
+      │
       ▼
 AgentRunner.invoke(
     message="Run pre-open brief for EU markets.",
@@ -798,15 +865,18 @@ AgentRunner.invoke(
 )
 ```
 
+No standalone worker process — scheduler lifecycle is tied to the agentic FastAPI app.
+
 ### 7.6 Requirement: Autonomous observation
 
 The system MUST run market observation cycles without user interaction at the configured schedule.
 
 ##### Scenario: EU pre-open brief
-- GIVEN the scheduler worker is running
+- GIVEN `nam-agentic` is running (scheduler started in app lifespan)
 - AND the current time is 08:50 Europe/Paris on a weekday
-- WHEN the EU pre-open trigger fires
-- THEN the Deep Agent is invoked with `market=Market.EU, phase=MarketPhase.PRE_OPEN`
+- WHEN the EU pre-open cron trigger fires
+- THEN a `market.session` event is handled with `market=Market.EU, phase=MarketPhase.PRE_OPEN`
+- AND the Deep Agent is invoked via `AgentRunner`
 - AND at least one `Analysis` is persisted to PostgreSQL
 
 ---
@@ -1120,7 +1190,8 @@ class GetUserContextInput(BaseModel):
 class UserContextOutput(BaseModel):
     user_id: UUID
     firstname: str
-    age: int
+    date_of_birth: date
+    age: int  # computed from date_of_birth at read time
     strategy: Strategy
     goals: str
 ```
@@ -1371,7 +1442,7 @@ sequenceDiagram
 
 ### 11.2 Security
 
-- JWT or session cookie authentication (v1.1)
+- **v1:** no auth — single-user local deployment; protect the host/network instead
 - Agents without user API credentials
 - Strict Pydantic validation on all tools
 - SQLAlchemy parameterized queries only
@@ -1403,7 +1474,7 @@ sequenceDiagram
 |-------|---------|
 | v1.1 | Persistent chat threads (LangGraph checkpointer) |
 | v1.2 | Admin UI to adjust market hours without restart |
-| v2.0 | Multi-user, RBAC |
+| v2.0 | Multi-user deployments, RBAC, authentication (if ever needed) |
 | v2.1 | Broker integration (read-only) |
 | v2.2 | Backtesting and Monte Carlo simulation |
 | v2.3 | Async remote subagents (Deep Agents v0.5+) |
@@ -1444,10 +1515,11 @@ nam/
 
 ### Recommended next steps
 
-1. `/opsx:propose setup-monorepo` — scaffold `packages/db`, `api/`, `agentic/`
-2. `/opsx:propose database-schema` — Alembic initial migration
-3. `/opsx:propose deep-agent-core` — OOP agents + factory + tools
-4. `/opsx:propose market-scheduler` — autonomous worker
+1. ~~`/opsx:propose setup-monorepo`~~ — done
+2. ~~`/opsx:propose database-schema`~~ — portfolio core done
+3. ~~`/opsx:propose agent-runtime-service`~~ — FastAPI skeleton + event bus + scheduler done
+4. **Deep agent implementation (hand-owned)** — wire `EventHandler` → `AgentRunner`, implement agents/subagents/tools per §8–9
+5. **Chat proxy (optional)** — API WebSocket → `chat.message` events to nam-agentic
 
 ---
 
