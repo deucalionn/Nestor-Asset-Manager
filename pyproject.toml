@@ -26,3 +26,4 @@ ignore = ["UP042"]  # openspec uses class Foo(str, Enum) pattern
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages/db", "api", "agentic"]
+pythonpath = ["api/tests"]
