@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    llm_model: str = "ollama:llama3.1:8b"
+    llm_model: str = "ollama:gemma4"
     llm_base_url: str = "http://localhost:11434"
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 384

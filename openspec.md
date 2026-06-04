@@ -1461,7 +1461,7 @@ sequenceDiagram
 | `DATABASE_URL` | All | Async PostgreSQL connection string |
 | `EMBEDDING_MODEL` | Agentic | Embedding model name |
 | `EMBEDDING_DIM` | Agentic + DB | Vector dimension (must match) |
-| `LLM_MODEL` | Agentic | e.g. `ollama:llama3.1:8b` |
+| `LLM_MODEL` | Agentic | e.g. `ollama:gemma4` |
 | `LLM_BASE_URL` | Agentic | Ollama/vLLM endpoint |
 | `DEFAULT_USER_ID` | Agentic | User ID for autonomous cycles (v1 single-user) |
 | `MARKET_TIMEZONE` | Agentic | Default: `Europe/Paris` |
