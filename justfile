@@ -12,21 +12,45 @@ down:
 migrate:
     uv run --directory packages/db alembic upgrade head
 
+# --- Granular (single process) ---
+
 api:
     uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
 
 agentic:
     uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 
-# DB (Docker) + migrations + API + agent runtime — one command for local dev
-dev: up migrate
+front:
+    cd front && pnpm dev
+
+# --- Run stacks ---
+
+# DB + migrations + API + agent runtime
+run back:
     #!/usr/bin/env bash
     set -euo pipefail
+    just up
+    just migrate
     trap 'kill $(jobs -p) 2>/dev/null || true' EXIT INT TERM
     echo "API → http://localhost:8000  |  Agent → http://localhost:8001"
     uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000 &
     uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
     wait
+
+# DB + migrations + API + agent runtime + Next.js
+run app:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just up
+    just migrate
+    trap 'kill $(jobs -p) 2>/dev/null || true' EXIT INT TERM
+    echo "API → http://localhost:8000  |  Agent → http://localhost:8001  |  Front → http://localhost:3000"
+    uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000 &
+    uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
+    (cd front && pnpm dev) &
+    wait
+
+# --- Tests & lint ---
 
 test:
     docker compose -f docker/tests/docker-compose.test.yml up --build --abort-on-container-exit --remove-orphans

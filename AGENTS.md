@@ -8,11 +8,15 @@
 packages/db/   nam-db     — SQLAlchemy models, Alembic (single migration history)
 api/           nam-api    — user-facing REST (:8000)
 agentic/       nam-agentic — always-on agent runtime (:8001)
+front/         Next.js UI (:3000) — API consumer only
 ```
+
+**Backend** (Python / uv): `packages/db`, `api/`, `agentic/` — env at repo root (`.env`).  
+**Frontend** (Node / pnpm): `front/` — env in `front/.env` (see `front/.env.example`).
 
 **Dependency graph:** `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (siblings).  
 **Coupling:** PostgreSQL (shared) + HTTP event bus (`POST /events` on agentic).  
-**No Python import** from `nam-api` → `nam-agentic`.
+**No Python import** from `nam-api` → `nam-agentic`. Front talks to `nam-api` over HTTP only.
 
 ## Commit message convention
 
@@ -41,6 +45,7 @@ Other types (`test`, `chore`, `build`) are OK when they fit better.
 | `agents` | This file, agent-facing instructions |
 | `api` | `api/nam_api/` |
 | `agent` | `agentic/nam_agentic/` |
+| `front` | `front/` (Next.js) |
 | `db` | `packages/db/` |
 | `openspec` | `openspec.md`, `openspec/` |
 | `infra` | `justfile`, `docker/`, root `pyproject.toml`, `.env.example` |
@@ -52,7 +57,7 @@ feat(agent): add FastAPI event bus and market scheduler
 feat(api): add portfolio transactions and positions endpoints
 fix(api): reject sell when quantity exceeds position
 docs(openspec): document agent runtime architecture
-update(infra): run api and agentic in just dev
+update(infra): run api and agentic in just run back
 refacto(db): extract portfolio enums to nam_db.enums
 test(api): add position calculator unit tests
 ```
@@ -102,7 +107,9 @@ Extension point: `agentic/nam_agentic/services/event_handler.py` → inject `Age
 just test          # API suite in Docker (32 tests)
 uv run pytest agentic/tests -q
 just lint
-just dev           # Postgres + migrate + api + agentic
+just run back      # Postgres + migrate + api + agentic
+just run app       # back + Next.js front
+just front         # front only (backend must already run)
 ```
 
 ## Code style

@@ -1,15 +1,22 @@
 # Nestor Asset Manager (NAM)
 
-Autonomous financial decision-support platform built as a uv monorepo with three Python packages:
+Autonomous financial decision-support platform — **backend** (uv monorepo) + **frontend** (Next.js).
+
+### Backend (Python)
 
 - **nam-db** — shared SQLAlchemy models, enums, Alembic migrations
 - **nam-agentic** — always-on agent runtime (FastAPI), Deep Agents, APScheduler market jobs
 - **nam-api** — user-facing FastAPI REST (WebSocket chat deferred)
 
+### Frontend (Node)
+
+- **front/** — Next.js + TypeScript, consumes nam-api (`NEXT_PUBLIC_API_URL`)
+
 ## Prerequisites
 
 - Python ≥ 3.12
-- [uv](https://docs.astral.sh/uv/) — **required**
+- [uv](https://docs.astral.sh/uv/) — **required** (backend)
+- Node.js ≥ 20 + [pnpm](https://pnpm.io/) — **required** (frontend)
 - [just](https://github.com/casey/just) — optional shortcuts (`brew install just` on macOS)
 - Docker + Docker Compose
 
@@ -46,8 +53,12 @@ source .venv/bin/activate
 uv sync --all-packages
 # or: uv sync --all-packages
 
-# 2. Configure environment
+# 2. Configure backend environment (repo root)
 cp .env.example .env
+
+# 2b. Configure frontend environment
+cp front/.env.example front/.env
+cd front && pnpm install && cd ..
 
 # 3. Start PostgreSQL (pgvector extension is auto-created on first boot)
 docker compose up -d
@@ -55,7 +66,7 @@ docker compose up -d
 # 4. Run migrations (once database-schema change adds tables)
 uv run --directory packages/db alembic upgrade head
 
-# 5–6. Start API + agent runtime (or: just dev)
+# 5–6. Start API + agent runtime (or: just run back)
 uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
 uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 ```
@@ -71,11 +82,21 @@ uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 | Tests (API, all) | `just test` |
 | API | `uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000` |
 | Agent runtime | `uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001` |
-| Lint | `uv run ruff check .` |
+| Frontend | `cd front && pnpm dev` |
+| Lint (Python) | `uv run ruff check .` |
 
-With [just](https://github.com/casey/just) installed: `just sync`, `just dev`, `just api`, etc.
+With [just](https://github.com/casey/just) installed:
 
-**Full local stack:** `just dev` starts Postgres (Docker), runs migrations, then API + agent runtime in parallel. `Ctrl+C` stops both apps; run `just down` to stop the DB.
+| Command | What runs |
+|---------|-----------|
+| `just run back` | DB + migrate + API + agentic |
+| `just run app` | back + Next.js (`:3000`) |
+| `just front` | front only |
+| `just api` / `just agentic` | single service |
+
+**Backend only:** `just run back` — `Ctrl+C` stops API and agent; DB stays up (`just down` to stop it).
+
+**Full stack:** `just run app` — same + frontend. Requires `cd front && pnpm install` once.
 
 Verify: `curl http://localhost:8000/health` and `curl http://localhost:8001/health`
 
@@ -97,11 +118,13 @@ The `vector` extension is created automatically when PostgreSQL starts for the f
 
 ```text
 packages/db/   → nam_db (shared kernel)
-agentic/       → nam_agentic (FastAPI agent runtime + Deep Agents)
 api/           → nam_api (user REST API)
+agentic/       → nam_agentic (FastAPI agent runtime + Deep Agents)
+front/         → Next.js UI (API consumer)
 ```
 
-Dependency direction: `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (sibling services; API notifies agentic via HTTP)
+**Backend:** `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (siblings; API notifies agentic via HTTP).  
+**Frontend:** `front/` → HTTP → `nam-api` only.
 
 ## Alembic
 
