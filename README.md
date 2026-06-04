@@ -66,7 +66,7 @@ docker compose up -d
 # 4. Run migrations (once database-schema change adds tables)
 uv run --directory packages/db alembic upgrade head
 
-# 5–6. Start API + agent runtime (or: just run back)
+# 5–6. Start API + agent runtime (or: just back / just app)
 uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
 uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 ```
@@ -89,14 +89,14 @@ With [just](https://github.com/casey/just) installed:
 
 | Command | What runs |
 |---------|-----------|
-| `just run back` | DB + migrate + API + agentic |
-| `just run app` | back + Next.js (`:3000`) |
-| `just front` | front only |
+| `just back` | DB + migrate + API + agentic |
+| `just app` | back + Next.js (`:3000`) |
+| `just front` | Next.js only (backend must already run) |
 | `just api` / `just agentic` | single service |
 
-**Backend only:** `just run back` — `Ctrl+C` stops API and agent; DB stays up (`just down` to stop it).
+**Backend only:** `just back` — `Ctrl+C` stops API and agent; DB stays up (`just down` to stop it).
 
-**Full stack:** `just run app` — same + frontend. Requires `cd front && pnpm install` once.
+**Full stack:** `just app` — same + frontend. Requires `cd front && pnpm install` once.
 
 Verify: `curl http://localhost:8000/health` and `curl http://localhost:8001/health`
 

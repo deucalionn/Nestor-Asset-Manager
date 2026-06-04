@@ -107,8 +107,8 @@ Extension point: `agentic/nam_agentic/services/event_handler.py` → inject `Age
 just test          # API suite in Docker (32 tests)
 uv run pytest agentic/tests -q
 just lint
-just run back      # Postgres + migrate + api + agentic
-just run app       # back + Next.js front
+just back          # Postgres + migrate + api + agentic
+just app           # back + Next.js front
 just front         # front only (backend must already run)
 ```
 

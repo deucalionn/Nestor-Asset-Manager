@@ -12,21 +12,9 @@ down:
 migrate:
     uv run --directory packages/db alembic upgrade head
 
-# --- Granular (single process) ---
+# --- Stacks: `just back` | `just front` | `just app` ---
 
-api:
-    uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
-
-agentic:
-    uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
-
-front:
-    cd front && pnpm dev
-
-# --- Run stacks ---
-
-# DB + migrations + API + agent runtime
-run back:
+back:
     #!/usr/bin/env bash
     set -euo pipefail
     just up
@@ -37,8 +25,10 @@ run back:
     uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
     wait
 
-# DB + migrations + API + agent runtime + Next.js
-run app:
+front:
+    cd front && pnpm dev
+
+app:
     #!/usr/bin/env bash
     set -euo pipefail
     just up
@@ -49,6 +39,14 @@ run app:
     uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
     (cd front && pnpm dev) &
     wait
+
+# --- Single service (debug) ---
+
+api:
+    uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
+
+agentic:
+    uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
 
 # --- Tests & lint ---
 

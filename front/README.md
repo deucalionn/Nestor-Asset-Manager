@@ -11,7 +11,7 @@ pnpm dev
 ```
 
 App: http://localhost:3000  
-Backend must be running separately (`just run back` from repo root).
+Backend must be running separately (`just back` from repo root).
 
 ## Environment
 
