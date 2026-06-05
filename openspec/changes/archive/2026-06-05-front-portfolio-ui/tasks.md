@@ -47,9 +47,3 @@
 
 - [x] 7.1 Manual E2E: fresh DB → onboarding → add index → BUY → position visible
 - [x] 7.2 Document in `front/README.md`: orval regen, env vars, dev with `just app`
-
-## 8. Out of scope (follow-up)
-
-- [ ] Chat page and WebSocket integration
-- [ ] SELL / edit / delete transactions in UI
-- [ ] Live unrealized P/L when API adds market prices
