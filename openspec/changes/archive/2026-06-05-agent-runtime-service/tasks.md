@@ -1,6 +1,6 @@
 # Tasks — agent runtime service
 
-Scope: **skeleton only** — agent/subagent/tool implementation is hand-owned.
+Scope: **skeleton only** — agent/subagent/tool implementation is hand-owned (see `openspec.md` §6–9 for follow-up work).
 
 ## Specs
 
@@ -26,18 +26,10 @@ Scope: **skeleton only** — agent/subagent/tool implementation is hand-owned.
 
 ## Dev infra
 
-- [x] `justfile` — `agentic` command, `just dev` runs api + agentic
+- [x] `justfile` — `agentic` command; `just back` / `just app` run api + agentic
 - [x] `.env.example` — `AGENTIC_URL`, agent bind vars
-- [ ] Optional: docker-compose `agentic` service (deferred)
 
 ## Tests
 
 - [x] `agentic/tests/test_runtime.py` — health + events
 - [x] `just test` — 32 API tests green
-
-## Hand-owned (not this change)
-
-- [ ] Wire `EventHandler` → `AgentRunner.invoke()` / `stream()`
-- [ ] Implement agents, subagents, tools (§8–9)
-- [ ] API WebSocket chat → proxy `chat.message` to agentic
-- [ ] Agent writes `USER_GOALS.md` from onboarding run
