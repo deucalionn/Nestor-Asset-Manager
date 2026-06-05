@@ -1,0 +1,269 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--color-bg-subtle);
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface);
+  border-radius: 1rem;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 6%);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.progress {
+  display: flex;
+  gap: 0.375rem;
+  padding: 1.25rem 1.5rem 0;
+}
+
+.progressSegment {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border);
+  transition: background 0.2s;
+}
+
+.progressSegmentActive {
+  background: var(--color-accent);
+}
+
+.header {
+  padding: 1.5rem 1.5rem 0.5rem;
+  text-align: center;
+}
+
+.iconCircle {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0 auto 1rem;
+  border-radius: 0.625rem;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eyebrow {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.375rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.25;
+  margin-bottom: 0.375rem;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.form {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.fieldNumber {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 6rem;
+  font-family: inherit;
+}
+
+.strategyGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.strategyCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 0.25rem 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.strategyCard:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+}
+
+.strategyCardSelected {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, white);
+}
+
+.strategyCard .fieldNumber {
+  grid-row: span 2;
+  align-self: center;
+}
+
+.strategyLabel {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.strategyDescription {
+  grid-column: 2;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.review {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-radius: 0.625rem;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.reviewTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.reviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reviewList div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.reviewList dt {
+  color: var(--color-text-muted);
+}
+
+.reviewList dd {
+  font-weight: 500;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.error {
+  font-size: 0.875rem;
+  color: var(--color-danger);
+  padding: 0.625rem 0.75rem;
+  background: color-mix(in srgb, var(--color-danger) 8%, white);
+  border-radius: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.btnPrimary,
+.btnSecondary {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btnPrimary {
+  background: var(--color-accent);
+  color: white;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.btnSecondary:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
