@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Shared database package location
 All SQLAlchemy models, enums, session factory, and Alembic migrations MUST live in `packages/db/` under the import path `nam_db`.
@@ -8,7 +8,7 @@ All SQLAlchemy models, enums, session factory, and Alembic migrations MUST live 
 - **THEN** it imports from `nam_db.models` — never defines its own ORM models
 
 ### Requirement: Enum module
-`nam_db/enums.py` MUST define Python enums matching PostgreSQL enums: `Strategy`, `TransactionType`, `AgentRole`, `SubAgentRole`, `RecommendationType`, `RecommendationStatus`.
+`nam_db/enums.py` MUST define Python enums matching PostgreSQL enums: `Strategy`, `TransactionType`, `AgentRole`, `SubAgentRole`, `RecommendationType`, `RecommendationStatus`, `AnalysisTrigger`.
 
 #### Scenario: Enum parity
 - **WHEN** `AgentRole.SECTOR_ANALYST` is used in code
@@ -84,11 +84,22 @@ SQLAlchemy enum columns MUST use `native_enum=True` with explicit PostgreSQL typ
 - **THEN** it uses `native_enum=True` and a named PostgreSQL enum type — not a VARCHAR check constraint
 
 ### Requirement: Model module stubs
-Empty model modules MUST exist for all planned entities: `user`, `index`, `transaction`, `position`, `analysis`, `recommendation`.
+Implemented ORM models MUST exist for all planned entities. Portfolio entities (`user`, `index`, `transaction`, `position`) and agent-memory entities (`analysis`, `recommendation`) MUST be fully mapped — not empty stubs.
 
 #### Scenario: Model package structure
-- **WHEN** `from nam_db.models import user` is executed
-- **THEN** the module loads without error (stub or implemented)
+- **WHEN** `from nam_db.models import Analysis, Recommendation` is executed
+- **THEN** both classes are SQLAlchemy mapped models with table definitions
+
+#### Scenario: Alembic discovery
+- **WHEN** `alembic revision --autogenerate` runs after model changes
+- **THEN** `Analysis` and `Recommendation` are included in metadata
+
+### Requirement: AnalysisTrigger in shared enums
+`nam_db/enums.py` MUST export `AnalysisTrigger` alongside existing domain enums.
+
+#### Scenario: Cross-package import
+- **WHEN** API or agentic code needs an analysis trigger value
+- **THEN** it imports `AnalysisTrigger` from `nam_db.enums`
 
 ### Requirement: No Pydantic in nam-db
 The `nam-db` package MUST NOT contain Pydantic HTTP or Tool schemas — only ORM models and enums.
