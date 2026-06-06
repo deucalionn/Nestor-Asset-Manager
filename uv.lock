@@ -1155,7 +1155,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.10" },
-    { name = "deepagents", specifier = ">=0.1" },
+    { name = "deepagents", specifier = ">=0.6" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "langchain-ollama", specifier = ">=0.3" },
     { name = "nam-db", editable = "packages/db" },
