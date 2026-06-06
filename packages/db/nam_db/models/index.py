@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from nam_db.base import Base
 
 if TYPE_CHECKING:
+    from nam_db.models.analysis import Analysis
     from nam_db.models.position import Position
     from nam_db.models.transaction import Transaction
 
@@ -29,3 +30,4 @@ class Index(Base):
 
     transactions: Mapped[list[Transaction]] = relationship(back_populates="index")
     positions: Mapped[list[Position]] = relationship(back_populates="index")
+    analyses: Mapped[list[Analysis]] = relationship(back_populates="index")

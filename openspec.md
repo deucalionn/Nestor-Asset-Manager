@@ -351,12 +351,13 @@ Do not replace pgvector with LangGraph Store for domain analyses — both coexis
 
 ```text
 User ─────────────┬──────────── Transaction ──────── Index
-  │               │                    │
-  │               └──────── Position ──┘
+  │               │                    │              │
+  │               └──────── Position ──┘              │
+  │                                                  │
+  ├── Analysis (content_embedding: vector) ─────────┘ (optional index_id)
   │
-  ├── Analysis (content_embedding: vector)
-  │
-  └── Recommendation ──── (FK) ──── Analysis
+  └── Recommendation ──── recommendation_analyses ──── Analysis
+                         (M:N junction)
 ```
 
 ### 4.2 PostgreSQL enums
@@ -384,6 +385,13 @@ CREATE TYPE recommendation_status_enum AS ENUM (
   'PENDING',
   'APPLIED',
   'REJECTED'
+);
+
+CREATE TYPE analysis_trigger_enum AS ENUM (
+  'MARKET_SESSION',
+  'NEWS_EVENT',
+  'MANUAL',
+  'TASK'
 );
 ```
 
@@ -440,6 +448,13 @@ class RecommendationStatus(str, Enum):
     PENDING = "PENDING"
     APPLIED = "APPLIED"
     REJECTED = "REJECTED"
+
+
+class AnalysisTrigger(str, Enum):
+    MARKET_SESSION = "MARKET_SESSION"
+    NEWS_EVENT = "NEWS_EVENT"
+    MANUAL = "MANUAL"
+    TASK = "TASK"
 ```
 
 **SQLAlchemy model usage**:
@@ -500,6 +515,7 @@ uv run alembic current
 | — | `SubAgentRole` | `CreateAnalysisTool` input (subset of `AgentRole`) |
 | `recommendation_type_enum` | `RecommendationType` | `recommendations.type` |
 | `recommendation_status_enum` | `RecommendationStatus` | `recommendations.status` |
+| `analysis_trigger_enum` | `AnalysisTrigger` | `analyses.trigger` |
 
 **Runtime-only enums** (not persisted in DB — live in `nam_agentic/enums.py`):
 
@@ -581,9 +597,12 @@ class MarketPhase(str, Enum):
 |--------|------|-------------|-------------|
 | `id` | UUID | PK | |
 | `user_id` | UUID | FK → users.id, NOT NULL | |
-| `agent` | agent_enum | NOT NULL | Author agent |
-| `content` | TEXT | NOT NULL | Textual report |
-| `content_embedding` | vector(N) | NOT NULL | Semantic embedding (N=384 or 1024) |
+| `agent` | agent_enum | NOT NULL | Author agent (sub-agents in practice) |
+| `index_id` | UUID | FK → indices.id, NULL | Optional instrument focus |
+| `title` | VARCHAR(255) | NOT NULL | Short label for UI and RAG snippets |
+| `content` | TEXT | NOT NULL | Full textual report |
+| `content_embedding` | vector(384) | NOT NULL | Semantic embedding (`nomic-embed-text`) |
+| `trigger` | analysis_trigger_enum | NOT NULL | What caused the analysis run |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 
 #### 4.3.6 `recommendations`
@@ -592,14 +611,22 @@ class MarketPhase(str, Enum):
 |--------|------|-------------|-------------|
 | `id` | UUID | PK | |
 | `user_id` | UUID | FK → users.id, NOT NULL | |
-| `analysis_id` | UUID | FK → analyses.id, NOT NULL | Source analysis |
-| `agent` | agent_enum | NOT NULL | Proposing agent |
-| `content` | TEXT | NOT NULL | Recommendation rationale |
+| `agent` | agent_enum | NOT NULL | Proposing agent (PM in practice) |
+| `content` | TEXT | NOT NULL | PM synthesis / rationale |
 | `type` | recommendation_type_enum | NOT NULL | BUY / HOLD / SELL |
 | `status` | recommendation_status_enum | NOT NULL, DEFAULT 'PENDING' | |
-| `user_comment` | TEXT | NULL | User comment |
+| `user_comment` | TEXT | NULL | User feedback on apply/reject |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 | `resolved_at` | TIMESTAMPTZ | NULL | Applied/Rejected date |
+
+#### 4.3.7 `recommendation_analyses` (junction)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `recommendation_id` | UUID | FK → recommendations.id, ON DELETE CASCADE | |
+| `analysis_id` | UUID | FK → analyses.id, ON DELETE RESTRICT | |
+
+**Primary key**: `(recommendation_id, analysis_id)` — a recommendation may cite multiple analyses.
 
 ### 4.4 Database requirements (OpenSpec)
 
@@ -670,8 +697,10 @@ The system MUST support cosine similarity search on `analyses.content_embedding`
 | GET/POST | `/indices` | Index catalog |
 | GET/POST/PUT/DELETE | `/transactions` | Ledger (singleton user) |
 | GET | `/positions` | Portfolio snapshot |
-| GET | `/analyses` | Analysis list (future) |
-| GET | `/recommendations` | Recommendation list (future) |
+| GET | `/analyses` | Analysis list (optional `index_id` filter) |
+| GET | `/analyses/{id}` | Analysis detail |
+| GET | `/recommendations` | Recommendation list (optional `status` filter) |
+| GET | `/recommendations/{id}` | Recommendation detail with linked analyses |
 | PATCH | `/recommendations/{id}` | Applied/Rejected + comment |
 | POST | `/trigger-analysis` | On-demand analysis (future) |
 | WS | `/ws/chat` | Optional chat — proxies to nam-agentic `chat.message` event (future) |
@@ -714,7 +743,7 @@ class TransactionCreate(BaseModel):
     fees: Decimal | None = Field(default=None, ge=0)
 
 
-class RecommendationFeedback(BaseModel):
+class RecommendationUpdate(BaseModel):
     status: RecommendationStatus  # APPLIED or REJECTED only — validate in service layer
     user_comment: str | None = None
 ```
@@ -1257,7 +1286,7 @@ from nam_db.enums import AgentRole, RecommendationStatus, RecommendationType
 
 class CreateRecommendationInput(BaseModel):
     user_id: UUID
-    analysis_id: UUID
+    analysis_ids: list[UUID] = Field(min_length=1)
     agent: AgentRole = AgentRole.PORTFOLIO_MANAGER
     content: str = Field(min_length=50)
     type: RecommendationType

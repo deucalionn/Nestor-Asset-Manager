@@ -12,7 +12,15 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+asyncpg://nam:nam@localhost:5432/nam_test"
 )
 
-PORTFOLIO_TABLES = ("positions", "transactions", "indices", "users")
+TRUNCATE_TABLES = (
+    "recommendation_analyses",
+    "recommendations",
+    "analyses",
+    "positions",
+    "transactions",
+    "indices",
+    "users",
+)
 
 
 @pytest.fixture(scope="session")
@@ -21,7 +29,7 @@ def anyio_backend() -> str:
 
 
 async def truncate_portfolio_tables(engine) -> None:
-    table_list = ", ".join(PORTFOLIO_TABLES)
+    table_list = ", ".join(TRUNCATE_TABLES)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE TABLE {table_list} RESTART IDENTITY CASCADE"))
 

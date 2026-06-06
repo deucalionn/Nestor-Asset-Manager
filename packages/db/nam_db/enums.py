@@ -38,3 +38,10 @@ class RecommendationStatus(str, Enum):
     PENDING = "PENDING"
     APPLIED = "APPLIED"
     REJECTED = "REJECTED"
+
+
+class AnalysisTrigger(str, Enum):
+    MARKET_SESSION = "MARKET_SESSION"
+    NEWS_EVENT = "NEWS_EVENT"
+    MANUAL = "MANUAL"
+    TASK = "TASK"

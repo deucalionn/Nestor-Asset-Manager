@@ -1,9 +1,24 @@
 from datetime import date
+from uuid import UUID
 
-from nam_db.enums import Strategy
+from nam_db.enums import (
+    AgentRole,
+    AnalysisTrigger,
+    RecommendationStatus,
+    RecommendationType,
+    Strategy,
+)
+from nam_db.models.analysis import Analysis
 from nam_db.models.index import Index
+from nam_db.models.recommendation import Recommendation
 from nam_db.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
+
+EMBEDDING_DIM = 384
+
+
+def zero_embedding() -> list[float]:
+    return [0.0] * EMBEDDING_DIM
 
 
 class UserFactory:
@@ -39,3 +54,55 @@ class IndexFactory:
         session.add(index)
         await session.flush()
         return index
+
+
+class AnalysisFactory:
+    @staticmethod
+    async def create(
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        agent: AgentRole = AgentRole.SECTOR_ANALYST,
+        index_id: UUID | None = None,
+        title: str = "Sector outlook",
+        content: str = "Detailed sector analysis report.",
+        trigger: AnalysisTrigger = AnalysisTrigger.MARKET_SESSION,
+    ) -> Analysis:
+        analysis = Analysis(
+            user_id=user_id,
+            agent=agent,
+            index_id=index_id,
+            title=title,
+            content=content,
+            content_embedding=zero_embedding(),
+            trigger=trigger,
+        )
+        session.add(analysis)
+        await session.flush()
+        return analysis
+
+
+class RecommendationFactory:
+    @staticmethod
+    async def create(
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        analyses: list[Analysis] | None = None,
+        agent: AgentRole = AgentRole.PORTFOLIO_MANAGER,
+        content: str = "Increase exposure based on sub-agent reports.",
+        type: RecommendationType = RecommendationType.BUY,
+        status: RecommendationStatus = RecommendationStatus.PENDING,
+    ) -> Recommendation:
+        recommendation = Recommendation(
+            user_id=user_id,
+            agent=agent,
+            content=content,
+            type=type,
+            status=status,
+        )
+        if analyses:
+            recommendation.analyses = analyses
+        session.add(recommendation)
+        await session.flush()
+        return recommendation

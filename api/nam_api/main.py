@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from nam_api.error_handlers import app_error_handler
 from nam_api.exceptions import AppError
-from nam_api.routers import health, indices, portfolio, profile
+from nam_api.routers import analyses, health, indices, portfolio, profile, recommendations
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,8 @@ def create_app() -> FastAPI:
         indices.router,
         portfolio.transactions_router,
         portfolio.positions_router,
+        analyses.router,
+        recommendations.router,
     ]
     for router in routers:
         app.include_router(router)

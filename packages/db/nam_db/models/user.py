@@ -13,7 +13,9 @@ from nam_db.base import Base
 from nam_db.enums import Strategy
 
 if TYPE_CHECKING:
+    from nam_db.models.analysis import Analysis
     from nam_db.models.position import Position
+    from nam_db.models.recommendation import Recommendation
     from nam_db.models.transaction import Transaction
 
 
@@ -42,3 +44,5 @@ class User(Base):
 
     transactions: Mapped[list[Transaction]] = relationship(back_populates="user")
     positions: Mapped[list[Position]] = relationship(back_populates="user")
+    analyses: Mapped[list[Analysis]] = relationship(back_populates="user")
+    recommendations: Mapped[list[Recommendation]] = relationship(back_populates="user")
