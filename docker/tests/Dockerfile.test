@@ -8,4 +8,4 @@ COPY . /app
 
 RUN uv sync --all-packages --all-groups
 
-CMD ["sh", "-c", "uv run --directory packages/db alembic upgrade head && uv run pytest api/tests -svv"]
+CMD ["sh", "-c", "uv run --directory packages/db alembic upgrade head && uv run pytest api/tests agentic/agentic_tests -svv"]
