@@ -938,6 +938,8 @@ BaseNamTool (ABC)
 ├── CalculatePortfolioWeightsTool
 ├── CreateRecommendationTool
 ├── CreateIndexTool
+├── GetIndexTool
+├── ListIndicesTool
 ├── CreateAnalysisTool
 ├── SearchPastAnalysesTool
 ├── GetMarketPriceTool
@@ -1103,18 +1105,23 @@ class DeepAgentFactory:
 
 ```python
 class ToolRegistry:
-    """Central registry — injects DB session / repos into all tool classes."""
+    """Central registry — injects DB session, runtime user_id, and services into tool classes."""
 
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker,
+        context: NamRuntimeContext,
+    ) -> None:
         self._session_factory = session_factory
-        self._init_tools()
+        self._user_id = context.user_id
+        # ... construct all eight tools with self._user_id bound at init time
 
-    def _init_tools(self) -> None:
-        self.get_user_context = GetUserContextTool(self._session_factory).as_tool()
-        self.get_portfolio_positions = GetPortfolioPositionsTool(self._session_factory).as_tool()
-        self.create_analysis = CreateAnalysisTool(self._session_factory).as_tool()
-        # ... etc.
+    def all_tools(self) -> list[BaseTool]:
+        """Return all registered LangChain tools."""
+        return [...]
 ```
+
+> **Runtime `user_id`**: Injected at tool construction from `NamRuntimeContext`. LangChain args schemas **exclude `user_id`** — the LLM never sees or supplies it.
 
 ### 8.8 Base tool pattern
 
@@ -1212,8 +1219,8 @@ Subagent markdown prompts (`SECTOR_ANALYST.md`, etc.) MUST NOT include direct re
 from nam_db.enums import Strategy
 
 
-class GetUserContextInput(BaseModel):
-    user_id: UUID
+class EmptyToolInput(BaseModel):
+    """No LLM-visible arguments — runtime user_id is injected at bind time."""
 
 
 class UserContextOutput(BaseModel):
@@ -1227,8 +1234,8 @@ class UserContextOutput(BaseModel):
 
 | Field | Description |
 |-------|-------------|
-| **DB access** | SELECT `users` |
-| **Errors** | `UserNotFoundError` if missing |
+| **DB access** | SELECT `users` WHERE `id` = runtime `user_id` |
+| **Errors** | `ToolError` if user missing |
 
 ---
 
@@ -1245,6 +1252,7 @@ class PositionItem(BaseModel):
     current_price: Decimal | None = None
     market_value: Decimal | None = None
     unrealized_pnl: Decimal | None = None
+    gain_loss_pct: float | None = None
 
 
 class GetPortfolioPositionsOutput(BaseModel):
@@ -1285,12 +1293,9 @@ from nam_db.enums import AgentRole, RecommendationStatus, RecommendationType
 
 
 class CreateRecommendationInput(BaseModel):
-    user_id: UUID
     analysis_ids: list[UUID] = Field(min_length=1)
-    agent: AgentRole = AgentRole.PORTFOLIO_MANAGER
     content: str = Field(min_length=50)
     type: RecommendationType
-    index_id: UUID | None = None
 
 
 class CreateRecommendationOutput(BaseModel):
@@ -1322,6 +1327,48 @@ class CreateIndexOutput(BaseModel):
 
 ---
 
+#### `GetIndexTool`
+
+```python
+class GetIndexInput(BaseModel):
+    index_id: UUID | None = None
+    isin: str | None = None
+    # validator: exactly one of index_id or isin
+
+
+class IndexDetailOutput(BaseModel):
+    index_id: UUID
+    name: str
+    isin: str
+    created_at: datetime
+```
+
+| **DB access** | SELECT `indices` by primary key or ISIN |
+
+---
+
+#### `ListIndicesTool`
+
+```python
+class ListIndicesInput(BaseModel):
+    name_query: str | None = None  # optional case-insensitive substring on name
+
+
+class IndexListItem(BaseModel):
+    index_id: UUID
+    name: str
+    isin: str
+    created_at: datetime
+
+
+class ListIndicesOutput(BaseModel):
+    indices: list[IndexListItem]
+```
+
+| **DB access** | SELECT `indices`, optional `ILIKE '%name_query%'` filter |
+
+---
+
 ### 9.2 Subagent tools
 
 #### `CreateAnalysisTool`
@@ -1331,9 +1378,11 @@ from nam_db.enums import AgentRole, SubAgentRole
 
 
 class CreateAnalysisInput(BaseModel):
-    user_id: UUID
     agent: SubAgentRole
+    title: str = Field(min_length=1, max_length=255)
     content: str = Field(min_length=100)
+    trigger: AnalysisTrigger
+    index_id: UUID | None = None
 
 
 class CreateAnalysisOutput(BaseModel):
@@ -1343,7 +1392,7 @@ class CreateAnalysisOutput(BaseModel):
     created_at: datetime
 ```
 
-| **Pipeline** | content → embed → INSERT `analyses` |
+| **Pipeline** | embed `title\n\ncontent` → INSERT `analyses` |
 
 ---
 
@@ -1354,7 +1403,6 @@ from nam_db.enums import AgentRole
 
 
 class SearchPastAnalysesInput(BaseModel):
-    user_id: UUID
     query: str = Field(min_length=10)
     top_k: int = Field(default=5, ge=1, le=20)
     agent_filter: AgentRole | None = None
