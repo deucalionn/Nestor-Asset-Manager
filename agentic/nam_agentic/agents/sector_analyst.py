@@ -22,4 +22,7 @@ class SectorAnalystAgent(BaseSubAgent):
         return "SECTOR_ANALYST"
 
     def tools(self) -> list[BaseTool]:
-        return []
+        return [
+            self._tools.create_analysis,
+            self._tools.search_past_analyses,
+        ]

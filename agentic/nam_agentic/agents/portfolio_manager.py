@@ -18,7 +18,12 @@ class PortfolioManagerAgent:
         self._prompt_loader = prompt_loader or PromptLoader()
 
     def tools(self) -> list[BaseTool]:
-        return []
+        return [
+            self._tools.get_user_context,
+            self._tools.get_portfolio_positions,
+            self._tools.create_recommendation,
+            self._tools.create_index,
+        ]
 
     def system_prompt(self) -> str:
         return self._prompt_loader.load(self.PROMPT_FILE)

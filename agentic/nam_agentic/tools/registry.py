@@ -35,17 +35,32 @@ class ToolRegistry:
         prices = price_provider or StubMarketPriceProvider()
         search = search_service or AnalysisSearchService()
 
+        self.create_analysis = CreateAnalysisTool(
+            session_factory, self._user_id, embedding
+        ).as_tool()
+        self.create_recommendation = CreateRecommendationTool(
+            session_factory, self._user_id
+        ).as_tool()
+        self.search_past_analyses = SearchPastAnalysesTool(
+            session_factory, self._user_id, embedding, search
+        ).as_tool()
+        self.get_user_context = GetUserContextTool(session_factory, self._user_id).as_tool()
+        self.get_portfolio_positions = GetPortfolioPositionsTool(
+            session_factory, self._user_id, prices
+        ).as_tool()
+        self.create_index = CreateIndexTool(session_factory).as_tool()
+        self.get_index = GetIndexTool(session_factory).as_tool()
+        self.list_indices = ListIndicesTool(session_factory).as_tool()
+
         self._tools: list[BaseTool] = [
-            CreateAnalysisTool(session_factory, self._user_id, embedding).as_tool(),
-            CreateRecommendationTool(session_factory, self._user_id).as_tool(),
-            SearchPastAnalysesTool(
-                session_factory, self._user_id, embedding, search
-            ).as_tool(),
-            GetUserContextTool(session_factory, self._user_id).as_tool(),
-            GetPortfolioPositionsTool(session_factory, self._user_id, prices).as_tool(),
-            CreateIndexTool(session_factory).as_tool(),
-            GetIndexTool(session_factory).as_tool(),
-            ListIndicesTool(session_factory).as_tool(),
+            self.create_analysis,
+            self.create_recommendation,
+            self.search_past_analyses,
+            self.get_user_context,
+            self.get_portfolio_positions,
+            self.create_index,
+            self.get_index,
+            self.list_indices,
         ]
 
     def all_tools(self) -> list[BaseTool]:
