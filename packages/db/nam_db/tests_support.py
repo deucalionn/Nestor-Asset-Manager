@@ -9,6 +9,7 @@ TRUNCATE_TABLES = (
     "recommendation_analyses",
     "recommendations",
     "analyses",
+    "news_items",
     "positions",
     "transactions",
     "indices",
