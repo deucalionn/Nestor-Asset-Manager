@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, Index, String, Text, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -35,3 +36,4 @@ class NewsItem(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ingest_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    content_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
