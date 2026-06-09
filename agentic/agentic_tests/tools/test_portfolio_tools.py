@@ -60,10 +60,18 @@ async def test_create_index_upsert(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     tool = CreateIndexTool(session_factory).as_tool()
-    created = as_dict(await tool.ainvoke({"name": "Test Index", "isin": "FR0003500008"}))
+    created = as_dict(
+        await tool.ainvoke(
+            {"name": "Test Index", "isin": "FR0003500008", "index_type": "COMPANY"}
+        )
+    )
     assert created["created"] is True
 
-    again = as_dict(await tool.ainvoke({"name": "Other", "isin": "FR0003500008"}))
+    again = as_dict(
+        await tool.ainvoke(
+            {"name": "Other", "isin": "FR0003500008", "index_type": "COMPANY"}
+        )
+    )
     assert again["created"] is False
     assert again["index_id"] == created["index_id"]
 
