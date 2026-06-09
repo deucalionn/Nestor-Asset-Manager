@@ -15,7 +15,7 @@ from nam_agentic.tools.services.embedding import EmbeddingService, OllamaEmbeddi
 from nam_agentic.tools.services.news_search import NewsSearchService
 
 
-class GetFinancialsNewsTool(BaseNamTool):
+class GetFinancialsNewsFromBoursoTool(BaseNamTool):
     def __init__(
         self,
         session_factory: async_sessionmaker[AsyncSession],
@@ -32,7 +32,7 @@ class GetFinancialsNewsTool(BaseNamTool):
         search_service = self._search_service
 
         @tool(args_schema=GetFinancialsNewsInput)
-        async def get_financials_news(
+        async def get_financials_news_from_bourso(
             category=None,
             keyword: str | None = None,
             semantic_query: str | None = None,
@@ -44,6 +44,7 @@ class GetFinancialsNewsTool(BaseNamTool):
             """Read cached Boursorama news and calendars from PostgreSQL.
 
             Use when: macro brief, market headlines, ETF context, or semantic news recall.
+            Do not use when: you need live Yahoo ticker news — use get_asset_news_from_yf.
             Do not use when: you need a fresh article not yet cached — use get_data_from_url first.
             Returns: list of news items (title, summary, category, dates) newest or by similarity.
             """
@@ -80,4 +81,4 @@ class GetFinancialsNewsTool(BaseNamTool):
 
             return GetFinancialsNewsOutput(items=items, count=len(items))
 
-        return get_financials_news
+        return get_financials_news_from_bourso

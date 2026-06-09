@@ -27,6 +27,7 @@ class Index(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     isin: Mapped[str] = mapped_column(String(12), nullable=False, unique=True)
     boursorama_ticker: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    yahoo_symbol: Mapped[str | None] = mapped_column(String(32), nullable=True)
     index_type: Mapped[IndexType] = mapped_column(
         SAEnum(IndexType, name="indextype", create_constraint=True, native_enum=True),
         nullable=False,

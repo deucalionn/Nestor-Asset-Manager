@@ -69,6 +69,23 @@ async def test_create_etf_index(db_session: AsyncSession, service: IndexService)
     assert result.boursorama_ticker == "1rTEWLD"
 
 
+async def test_create_index_with_yahoo_symbol(
+    db_session: AsyncSession, service: IndexService
+) -> None:
+    result = await service.create(
+        db_session,
+        IndexCreate(
+            name="Air Liquide",
+            isin="FR0000120073",
+            index_type=IndexType.COMPANY,
+            yahoo_symbol="AI.PA",
+        ),
+    )
+    await db_session.commit()
+
+    assert result.yahoo_symbol == "AI.PA"
+
+
 async def test_duplicate_isin(db_session: AsyncSession, service: IndexService) -> None:
     await service.create(
         db_session,

@@ -39,7 +39,8 @@ class SearchPastAnalysesTool(BaseNamTool):
             """Search past analyses by semantic similarity (RAG).
 
             Use when: grounding a new memo in your prior regime or stock theses.
-            Do not use when: you need live market news — use get_financials_news instead.
+            Do not use when: you need live market news — use get_financials_news_from_bourso
+            or get_asset_news_from_yf instead.
             Returns: ranked analyses with title, agent, content excerpt, and dates.
             """
             query_vector = await embedding_service.embed(query)

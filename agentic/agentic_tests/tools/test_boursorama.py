@@ -238,7 +238,9 @@ async def test_get_financials_news_semantic_search(
 ) -> None:
     from datetime import UTC, datetime
 
-    from nam_agentic.tools.market.get_financials_news import GetFinancialsNewsTool
+    from nam_agentic.tools.market.get_financials_news_from_bourso import (
+        GetFinancialsNewsFromBoursoTool,
+    )
     from support.helpers import MockEmbeddingService, as_dict
 
     vector = [1.0] + [0.0] * 383
@@ -258,7 +260,7 @@ async def test_get_financials_news_semantic_search(
         )
         await session.commit()
 
-    tool = GetFinancialsNewsTool(
+    tool = GetFinancialsNewsFromBoursoTool(
         session_factory,
         embedding_service=MockEmbeddingService(vector=vector),
     ).as_tool()
