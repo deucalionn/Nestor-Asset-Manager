@@ -22,10 +22,9 @@ async def test_health():
 async def test_events_accepted():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        payload = {"market": "EU", "phase": "PRE_OPEN"}
         response = await client.post(
             "/events",
-            json={"type": EventType.MARKET_SESSION, "payload": payload},
+            json={"type": EventType.USER_PROFILE_CREATED},
         )
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
