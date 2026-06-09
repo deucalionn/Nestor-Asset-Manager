@@ -3,9 +3,11 @@
 ### Requirement: GetFinancialsNewsFromBoursoTool
 `GetFinancialsNewsFromBoursoTool` (formerly `GetFinancialsNewsTool` / LangChain name `get_financials_news`) MUST query `news_items` and return newest-first results matching filters. It MUST NOT fetch external URLs or yfinance.
 
-Primary news source for **macro briefs** and **ETF context** (cron-refreshed Bourso ingest).
+Primary news source for **macro briefs** and **ETF context** (cron-refreshed Bourso MARKETS/FINANCE ingest).
 
-#### Scenario: Filter by macro calendar
+Calendar tables are NOT the primary use case — see `agentic-news-tools` and `bourso-calendar-shared-file` specs.
+
+#### Scenario: Filter by macro calendar legacy rows
 - **WHEN** the tool is called with `category=CALENDAR_MACRO` and `since_hours=24`
 - **THEN** only rows with that category and `fetched_at` within the window are returned
 - **AND** results are ordered by `COALESCE(published_at, fetched_at)` descending
@@ -32,8 +34,9 @@ Cross-references (e.g. `search_past_analyses` docstring) MUST point to the new n
 
 #### Scenario: Macro prompt references Bourso cache tool
 - **WHEN** `MACRO_STRATEGIST.md` is reviewed
-- **THEN** it documents `get_financials_news_from_bourso` for cached calendars and headlines
+- **THEN** it documents `get_financials_news_from_bourso` for MARKETS/FINANCE headlines
 - **AND** does not mention `get_financials_news`
+- **AND** calendar context comes from `/shared/calendar/today.md` (not `CALENDAR_*` SQL filters)
 
 ### Requirement: Subagent Bourso news wiring
 Subagents MUST expose the Bourso news tool as follows:
