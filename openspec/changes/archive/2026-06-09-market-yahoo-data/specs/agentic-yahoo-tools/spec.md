@@ -137,6 +137,8 @@ Yahoo tools MUST NOT invoke Bourso HTTP clients. Bourso tools MUST NOT invoke yf
 
 ### Requirement: Subagent Yahoo tool assignment
 
+The system MUST assign Yahoo tools to subagents as follows:
+
 | Subagent | Yahoo tools |
 |----------|-------------|
 | Macro Strategist | `get_asset_price_from_yf`, `get_asset_history_from_yf`, `get_asset_news_from_yf` |

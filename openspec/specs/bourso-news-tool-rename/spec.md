@@ -1,15 +1,7 @@
-## RENAMED Requirements
-
-### Requirement: GetFinancialsNewsTool
-- **FROM:** `GetFinancialsNewsTool` / LangChain name `get_financials_news`
-- **TO:** `GetFinancialsNewsFromBoursoTool` / LangChain name `get_financials_news_from_bourso`
-
-Behavior unchanged: queries `news_items` SQL cache only — no live Bourso HTTP, no yfinance.
-
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: GetFinancialsNewsFromBoursoTool
-`GetFinancialsNewsFromBoursoTool` (formerly `GetFinancialsNewsTool`) MUST query `news_items` and return newest-first results matching filters. It MUST NOT fetch external URLs or yfinance.
+`GetFinancialsNewsFromBoursoTool` (formerly `GetFinancialsNewsTool` / LangChain name `get_financials_news`) MUST query `news_items` and return newest-first results matching filters. It MUST NOT fetch external URLs or yfinance.
 
 Primary news source for **macro briefs** and **ETF context** (cron-refreshed Bourso ingest).
 
@@ -44,6 +36,7 @@ Cross-references (e.g. `search_past_analyses` docstring) MUST point to the new n
 - **AND** does not mention `get_financials_news`
 
 ### Requirement: Subagent Bourso news wiring
+Subagents MUST expose the Bourso news tool as follows:
 
 | Subagent | Bourso news tool |
 |----------|------------------|
