@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     agentic_host: str = "0.0.0.0"
     agentic_port: int = 8001
     agent_workspace_dir: Path = _ROOT_DIR / "data" / "agent_workspace"
+    news_ingest_enabled: bool = True
+    boursorama_min_delay_seconds: float = 1.5
+    boursorama_max_delay_seconds: float = 4.0
+    boursorama_max_requests_per_minute: int = 12
+    boursorama_max_requests_per_hour: int = 120
+    boursorama_user_agent: str = ""
+    boursorama_send_referer: bool = True
+    news_format_max_chars: int = 12_000
+    news_format_llm_enabled: bool = True
 
 
 settings = Settings()

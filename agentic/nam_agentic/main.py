@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from nam_agentic.dependencies import event_handler
 from nam_agentic.routers import events, health
-from nam_agentic.scheduler.scheduler import register_market_jobs
+from nam_agentic.scheduler.scheduler import register_market_jobs, register_news_ingest_jobs
 from nam_agentic.schemas.events import AgentEvent
 from nam_agentic.settings import settings
 
@@ -22,6 +22,11 @@ async def lifespan(_app: FastAPI):
         await event_handler.handle(event)
 
     register_market_jobs(
+        scheduler,
+        on_market_event,
+        timezone=settings.market_timezone,
+    )
+    register_news_ingest_jobs(
         scheduler,
         on_market_event,
         timezone=settings.market_timezone,

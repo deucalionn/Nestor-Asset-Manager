@@ -10,12 +10,14 @@ class EventType(StrEnum):
     USER_PROFILE_UPDATED = "user.profile.updated"
     CHAT_MESSAGE = "chat.message"
     MARKET_SESSION = "market.session"
+    NEWS_INGEST_DAILY = "news.ingest.daily"
+    NEWS_INGEST_SESSION = "news.ingest.session"
 
 
 class AgentEvent(BaseModel):
     type: EventType
     user_id: UUID | None = None
-    # a voir car Any, peut etre on peut faire un type plus precis ou alors on caste en fonction du type de l'event dans le service nécessaire
+    # Typed per event in handlers when needed (v1 keeps a loose dict).
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
