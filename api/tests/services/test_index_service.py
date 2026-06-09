@@ -3,6 +3,7 @@ from factories import IndexFactory
 from nam_api.exceptions import ConflictError, NotFoundError
 from nam_api.schemas.index import IndexCreate
 from nam_api.services.index_service import IndexService
+from nam_db.enums import IndexType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -13,7 +14,8 @@ def service() -> IndexService:
 
 async def test_create_index(db_session: AsyncSession, service: IndexService) -> None:
     result = await service.create(
-        db_session, IndexCreate(name="CAC 40", isin="FR0003500008")
+        db_session,
+        IndexCreate(name="CAC 40", isin="FR0003500008", index_type=IndexType.COMPANY),
     )
     await db_session.commit()
 
@@ -51,9 +53,31 @@ async def test_get_index_not_found(db_session: AsyncSession, service: IndexServi
         await service.get(db_session, uuid4())
 
 
+async def test_create_etf_index(db_session: AsyncSession, service: IndexService) -> None:
+    result = await service.create(
+        db_session,
+        IndexCreate(
+            name="Amundi MSCI World",
+            isin="FR0010315770",
+            index_type=IndexType.ETF,
+            boursorama_ticker="1rTEWLD",
+        ),
+    )
+    await db_session.commit()
+
+    assert result.index_type == IndexType.ETF
+    assert result.boursorama_ticker == "1rTEWLD"
+
+
 async def test_duplicate_isin(db_session: AsyncSession, service: IndexService) -> None:
-    await service.create(db_session, IndexCreate(name="CAC 40", isin="FR0003500008"))
+    await service.create(
+        db_session,
+        IndexCreate(name="CAC 40", isin="FR0003500008", index_type=IndexType.COMPANY),
+    )
     await db_session.commit()
 
     with pytest.raises(ConflictError):
-        await service.create(db_session, IndexCreate(name="CAC 40 Copy", isin="FR0003500008"))
+        await service.create(
+            db_session,
+            IndexCreate(name="CAC 40 Copy", isin="FR0003500008", index_type=IndexType.COMPANY),
+        )
