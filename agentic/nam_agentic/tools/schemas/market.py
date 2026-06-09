@@ -257,3 +257,30 @@ class UpdateIndexYahooSymbolOutput(BaseModel):
     isin: str
     index_type: IndexType
     yahoo_symbol: str
+
+
+class FetchCalendarFromBoursoInput(BaseModel):
+    include_categories: list[NewsCategory] | None = Field(
+        default=None,
+        description="Optional subset of calendar feeds; default fetches all four.",
+    )
+
+
+class CalendarEventRow(BaseModel):
+    time: str | None = None
+    event: str
+    previous: str | None = None
+    last: str | None = None
+    importance: int | None = None
+
+
+class CalendarSectionOutput(BaseModel):
+    category: NewsCategory
+    source_url: str
+    rows: list[CalendarEventRow]
+
+
+class FetchCalendarFromBoursoOutput(BaseModel):
+    markdown: str
+    fetched_at: datetime
+    sections: list[CalendarSectionOutput]
