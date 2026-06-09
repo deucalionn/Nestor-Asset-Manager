@@ -1,5 +1,30 @@
 ## Requirements
 
+### Requirement: ToolRegistry exposes all basics-tools
+`ToolRegistry` MUST instantiate every basics-tool (eight tools) bound to a `NamRuntimeContext` (or runtime `user_id`) and expose them via `all_tools() -> list[BaseTool]`.
+
+#### Scenario: Registry returns complete basics set
+- **WHEN** `ToolRegistry(session_factory, context).all_tools()` is called
+- **THEN** eight LangChain basics-tools are returned with distinct snake_case names
+
+### Requirement: Enriched tool docstrings
+Every LangChain `@tool` callable (basics-tools **and** market tools) MUST have a **multi-line** docstring exposed to the LLM. One-line docstrings are insufficient.
+
+Each docstring MUST include these labeled sections:
+
+| Section | Content |
+|---------|---------|
+| First line | Imperative one-line summary (becomes short description preview) |
+| `Use when:` | Concrete situations to invoke the tool |
+| `Do not use when:` | Anti-patterns, wrong `index_type`, or superseding tools |
+| `Returns:` | Output shape in plain language (not raw Pydantic field names only) |
+
+Market tools MUST document `COMPANY` vs `ETF` eligibility where relevant.
+
+#### Scenario: Market tool docstring is multi-line
+- **WHEN** `GetEtfCompositionTool.as_tool()` is inspected
+- **THEN** the bound tool's `description` contains `Use when:`, `Do not use when:`, and `Returns:` sections
+
 ### Requirement: Agentic package layout
 The `nam-agentic` package MUST follow the OOP directory structure defined in `openspec.md` section 2.1.
 
