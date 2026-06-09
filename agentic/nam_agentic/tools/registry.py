@@ -4,6 +4,11 @@ from langchain_core.tools import BaseTool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.context import NamRuntimeContext
+from nam_agentic.tools.market.get_data_from_url import GetDataFromUrlTool
+from nam_agentic.tools.market.get_etf_composition import GetEtfCompositionTool
+from nam_agentic.tools.market.get_financials_news import GetFinancialsNewsTool
+from nam_agentic.tools.market.search_boursorama import SearchBoursoramaTool
+from nam_agentic.tools.market.update_index_boursorama import UpdateIndexBoursoramaTool
 from nam_agentic.tools.memory.create_analysis import CreateAnalysisTool
 from nam_agentic.tools.memory.create_recommendation import CreateRecommendationTool
 from nam_agentic.tools.memory.search_past_analyses import SearchPastAnalysesTool
@@ -51,6 +56,13 @@ class ToolRegistry:
         self.create_index = CreateIndexTool(session_factory).as_tool()
         self.get_index = GetIndexTool(session_factory).as_tool()
         self.list_indices = ListIndicesTool(session_factory).as_tool()
+        self.get_financials_news = GetFinancialsNewsTool(session_factory, embedding).as_tool()
+        self.get_data_from_url = GetDataFromUrlTool(
+            session_factory, embedding_service=embedding
+        ).as_tool()
+        self.search_boursorama = SearchBoursoramaTool(session_factory).as_tool()
+        self.get_etf_composition = GetEtfCompositionTool(session_factory).as_tool()
+        self.update_index_boursorama = UpdateIndexBoursoramaTool(session_factory).as_tool()
 
         self._tools: list[BaseTool] = [
             self.create_analysis,
@@ -61,6 +73,11 @@ class ToolRegistry:
             self.create_index,
             self.get_index,
             self.list_indices,
+            self.get_financials_news,
+            self.get_data_from_url,
+            self.search_boursorama,
+            self.get_etf_composition,
+            self.update_index_boursorama,
         ]
 
     def all_tools(self) -> list[BaseTool]:

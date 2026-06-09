@@ -31,7 +31,12 @@ class CreateRecommendationTool(BaseNamTool):
             content: str,
             type: RecommendationType,
         ) -> CreateRecommendationOutput:
-            """Create a pending portfolio recommendation linked to analyses."""
+            """Create a pending portfolio recommendation linked to analyses.
+
+            Use when: PM converts desk memos into a BUY/HOLD/SELL action for the user.
+            Do not use when: you are a sub-agent — persist analyses via create_analysis instead.
+            Returns: recommendation_id and linked analysis_ids.
+            """
             async with session_factory() as session:
                 stmt = select(Analysis).where(
                     Analysis.id.in_(analysis_ids),

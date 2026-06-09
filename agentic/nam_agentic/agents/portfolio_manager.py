@@ -21,8 +21,11 @@ class PortfolioManagerAgent:
         return [
             self._tools.get_user_context,
             self._tools.get_portfolio_positions,
-            self._tools.create_recommendation,
+            self._tools.search_past_analyses,
+            self._tools.list_indices,
+            self._tools.get_index,
             self._tools.create_index,
+            self._tools.create_recommendation,
         ]
 
     def system_prompt(self) -> str:

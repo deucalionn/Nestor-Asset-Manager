@@ -35,7 +35,12 @@ class GetPortfolioPositionsTool(BaseNamTool):
 
         @tool(args_schema=EmptyToolInput)
         async def get_portfolio_positions() -> GetPortfolioPositionsOutput:
-            """List portfolio positions with optional gain/loss percentage."""
+            """List portfolio positions with optional gain/loss percentage.
+
+            Use when: sector/ETF analysis needs holdings with index_type and boursorama_ticker.
+            Do not use when: you only need macro context without portfolio lines.
+            Returns: positions with quantities, PnL fields, index_type, and boursorama_ticker.
+            """
             async with session_factory() as session:
                 stmt = (
                     select(Position)
@@ -72,6 +77,8 @@ class GetPortfolioPositionsTool(BaseNamTool):
                         index_id=index.id,
                         index_name=index.name,
                         isin=index.isin,
+                        index_type=index.index_type,
+                        boursorama_ticker=index.boursorama_ticker,
                         quantity=position.quantity,
                         average_cost=position.average_cost,
                         last_update=position.last_update,

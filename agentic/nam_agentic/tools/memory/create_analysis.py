@@ -34,7 +34,12 @@ class CreateAnalysisTool(BaseNamTool):
             trigger: AnalysisTrigger,
             index_id: UUID | None = None,
         ) -> CreateAnalysisOutput:
-            """Persist a sub-agent analysis with semantic embedding."""
+            """Persist a sub-agent analysis with semantic embedding.
+
+            Use when: completing a desk memo to store in RAG for future cycles.
+            Do not use when: you need a trade call — use create_recommendation (PM only).
+            Returns: analysis_id for cross-referencing in later tasks.
+            """
             embed_text = canonical_embed_text(title, content)
             vector = await embedding_service.embed(embed_text)
             agent_role = AgentRole(agent.value)

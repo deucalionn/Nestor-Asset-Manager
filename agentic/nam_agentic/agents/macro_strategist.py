@@ -25,4 +25,6 @@ class MacroStrategistAgent(BaseSubAgent):
         return [
             self._tools.create_analysis,
             self._tools.search_past_analyses,
+            self._tools.get_financials_news,
+            self._tools.get_data_from_url,
         ]

@@ -22,7 +22,12 @@ class GetIndexTool(BaseNamTool):
             index_id: UUID | None = None,
             isin: str | None = None,
         ) -> IndexDetailOutput:
-            """Fetch a single index by id or ISIN."""
+            """Fetch a single index by id or ISIN.
+
+            Use when: you need index_type and boursorama_ticker before search or news tools.
+            Do not use when: you only need a lightweight name list — use list_indices instead.
+            Returns: index metadata including index_type and optional boursorama_ticker.
+            """
             async with session_factory() as session:
                 if index_id is not None:
                     index = await session.get(Index, index_id)
