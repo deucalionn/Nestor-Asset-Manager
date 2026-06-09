@@ -120,3 +120,55 @@ def register_market_jobs(
             session.close_time,
             timezone,
         )
+
+
+def register_news_ingest_jobs(
+    scheduler: AsyncIOScheduler,
+    callback: MarketCallback,
+    *,
+    timezone: str,
+) -> None:
+    """Register Boursorama news ingest cron jobs (Europe/Paris)."""
+    tz = ZoneInfo(timezone)
+
+    async def _daily() -> None:
+        await callback(AgentEvent(type=EventType.NEWS_INGEST_DAILY))
+
+    scheduler.add_job(
+        _daily,
+        CronTrigger(hour=7, minute=0, timezone=tz),
+        id="news-ingest-daily",
+        replace_existing=True,
+    )
+
+    eu_session = next(s for s in MARKET_SESSIONS if s.market == Market.EU)
+    post_open = _add_minutes(eu_session.open_time, 20)
+    periodic_times = _periodic_times(eu_session)
+    mid_session = periodic_times[1] if len(periodic_times) > 1 else periodic_times[0]
+
+    async def _session() -> None:
+        await callback(
+            AgentEvent(
+                type=EventType.NEWS_INGEST_SESSION,
+                payload={"market": Market.EU.value},
+            )
+        )
+
+    for job_id, trigger_time in (
+        ("news-ingest-eu-post-open", post_open),
+        ("news-ingest-eu-mid", mid_session),
+        ("news-ingest-eu-close", eu_session.close_time),
+    ):
+        scheduler.add_job(
+            _session,
+            CronTrigger(
+                hour=trigger_time.hour,
+                minute=trigger_time.minute,
+                day_of_week="mon-fri",
+                timezone=tz,
+            ),
+            id=job_id,
+            replace_existing=True,
+        )
+
+    logger.info("Registered news ingest jobs (%s)", timezone)

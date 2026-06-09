@@ -25,4 +25,10 @@ class SectorAnalystAgent(BaseSubAgent):
         return [
             self._tools.create_analysis,
             self._tools.search_past_analyses,
+            self._tools.get_financials_news,
+            self._tools.get_data_from_url,
+            self._tools.search_boursorama,
+            self._tools.update_index_boursorama,
+            self._tools.get_index,
+            self._tools.get_portfolio_positions,
         ]

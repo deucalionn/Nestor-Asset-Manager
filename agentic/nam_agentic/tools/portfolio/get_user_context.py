@@ -32,7 +32,12 @@ class GetUserContextTool(BaseNamTool):
 
         @tool(args_schema=EmptyToolInput)
         async def get_user_context() -> UserContextOutput:
-            """Return the configured user profile (strategy, goals, age)."""
+            """Return the configured user profile (strategy, goals, age).
+
+            Use when: tailoring macro or sector advice to the user's strategy and horizon.
+            Do not use when: you need holdings detail — use get_portfolio_positions instead.
+            Returns: user_id, strategy enum, goals text, and computed age.
+            """
             async with session_factory() as session:
                 user = await session.get(User, user_id)
                 if user is None:

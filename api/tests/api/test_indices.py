@@ -11,7 +11,7 @@ async def test_list_indices_empty(async_client: AsyncClient) -> None:
 async def test_create_and_get_index(async_client: AsyncClient) -> None:
     create_response = await async_client.post(
         "/indices",
-        json={"name": "CAC 40", "isin": "FR0003500008"},
+        json={"name": "CAC 40", "isin": "FR0003500008", "index_type": "COMPANY"},
     )
 
     assert create_response.status_code == 201
@@ -25,12 +25,12 @@ async def test_create_and_get_index(async_client: AsyncClient) -> None:
 
 
 async def test_duplicate_isin_returns_409(async_client: AsyncClient) -> None:
-    payload = {"name": "CAC 40", "isin": "FR0003500008"}
+    payload = {"name": "CAC 40", "isin": "FR0003500008", "index_type": "COMPANY"}
     await async_client.post("/indices", json=payload)
 
     response = await async_client.post(
         "/indices",
-        json={"name": "CAC 40 Duplicate", "isin": "FR0003500008"},
+        json={"name": "CAC 40 Duplicate", "isin": "FR0003500008", "index_type": "COMPANY"},
     )
 
     assert response.status_code == 409

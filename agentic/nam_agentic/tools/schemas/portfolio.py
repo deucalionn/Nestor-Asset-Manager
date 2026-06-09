@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from nam_db.enums import Strategy
+from nam_db.enums import IndexType, Strategy
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
@@ -23,6 +23,8 @@ class PositionItem(BaseModel):
     index_id: UUID
     index_name: str
     isin: str
+    index_type: IndexType
+    boursorama_ticker: str | None
     quantity: Decimal
     average_cost: Decimal
     last_update: datetime
@@ -41,6 +43,8 @@ class GetPortfolioPositionsOutput(BaseModel):
 class CreateIndexInput(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     isin: str = Field(min_length=1, max_length=12)
+    index_type: IndexType
+    boursorama_ticker: str | None = Field(default=None, max_length=32)
 
 
 class CreateIndexOutput(BaseModel):
@@ -70,6 +74,8 @@ class IndexDetailOutput(BaseModel):
     index_id: UUID = Field(validation_alias="id")
     name: str
     isin: str
+    index_type: IndexType
+    boursorama_ticker: str | None
     created_at: datetime
 
 
@@ -83,6 +89,8 @@ class IndexListItem(BaseModel):
     index_id: UUID = Field(validation_alias="id")
     name: str
     isin: str
+    index_type: IndexType
+    boursorama_ticker: str | None
     created_at: datetime
 
 

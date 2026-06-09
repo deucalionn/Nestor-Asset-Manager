@@ -11,6 +11,9 @@ dependencies = [
     "pydantic-settings>=2.6",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
+    "httpx>=0.28",
+    "trafilatura>=2.0",
+    "selectolax>=0.3",
 ]
 
 [dependency-groups]

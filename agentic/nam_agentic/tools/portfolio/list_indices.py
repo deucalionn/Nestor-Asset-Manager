@@ -16,7 +16,12 @@ class ListIndicesTool(BaseNamTool):
 
         @tool(args_schema=ListIndicesInput)
         async def list_indices(name_query: str | None = None) -> ListIndicesOutput:
-            """List indices, optionally filtered by name substring."""
+            """List indices, optionally filtered by name substring.
+
+            Use when: browsing available instruments or matching a name before get_index.
+            Do not use when: you already have index_id or isin — use get_index directly.
+            Returns: indices with index_type and optional boursorama_ticker per row.
+            """
             async with session_factory() as session:
                 stmt = select(Index).order_by(Index.name)
                 if name_query:

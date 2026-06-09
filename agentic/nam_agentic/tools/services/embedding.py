@@ -7,6 +7,19 @@ def canonical_embed_text(title: str, content: str) -> str:
     return f"{title}\n\n{content}"
 
 
+def news_embed_text(
+    title: str,
+    summary: str | None = None,
+    content_markdown: str | None = None,
+) -> str:
+    parts = [title]
+    if summary:
+        parts.append(summary)
+    if content_markdown:
+        parts.append(content_markdown)
+    return "\n\n".join(parts)
+
+
 class EmbeddingService(Protocol):
     async def embed(self, text: str) -> list[float]: ...
 

@@ -36,7 +36,12 @@ class SearchPastAnalysesTool(BaseNamTool):
             agent_filter: AgentRole | None = None,
             min_similarity: float = 0.7,
         ) -> SearchPastAnalysesOutput:
-            """Search past analyses by semantic similarity (RAG)."""
+            """Search past analyses by semantic similarity (RAG).
+
+            Use when: grounding a new memo in your prior regime or stock theses.
+            Do not use when: you need live market news — use get_financials_news instead.
+            Returns: ranked analyses with title, agent, content excerpt, and dates.
+            """
             query_vector = await embedding_service.embed(query)
             async with session_factory() as session:
                 results = await search_service.search(

@@ -11,7 +11,12 @@ from nam_api.schemas.index import IndexCreate, IndexRead
 
 class IndexService:
     async def create(self, session: AsyncSession, data: IndexCreate) -> IndexRead:
-        index = Index(name=data.name, isin=data.isin)
+        index = Index(
+            name=data.name,
+            isin=data.isin,
+            index_type=data.index_type,
+            boursorama_ticker=data.boursorama_ticker,
+        )
         session.add(index)
         try:
             await session.flush()

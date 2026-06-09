@@ -45,3 +45,22 @@ class AnalysisTrigger(str, Enum):
     NEWS_EVENT = "NEWS_EVENT"
     MANUAL = "MANUAL"
     TASK = "TASK"
+
+
+class NewsSource(str, Enum):
+    BOURSORAMA = "BOURSORAMA"
+
+
+class NewsCategory(str, Enum):
+    CALENDAR_GENERAL = "CALENDAR_GENERAL"
+    CALENDAR_LISTED_COMPANIES = "CALENDAR_LISTED_COMPANIES"
+    CALENDAR_MACRO = "CALENDAR_MACRO"
+    CALENDAR_DIVIDENDS = "CALENDAR_DIVIDENDS"
+    MARKETS = "MARKETS"
+    FINANCE = "FINANCE"
+    COMPANY_NEWS = "COMPANY_NEWS"
+
+
+class IndexType(str, Enum):
+    COMPANY = "COMPANY"
+    ETF = "ETF"

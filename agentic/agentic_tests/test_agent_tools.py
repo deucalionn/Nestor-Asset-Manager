@@ -25,8 +25,11 @@ async def test_portfolio_manager_tools(
     assert _tool_names(pm.tools()) == {
         "get_user_context",
         "get_portfolio_positions",
-        "create_recommendation",
+        "search_past_analyses",
+        "list_indices",
+        "get_index",
         "create_index",
+        "create_recommendation",
     }
 
 
@@ -35,8 +38,36 @@ async def test_subagent_tools(
     test_user: User,
 ) -> None:
     registry = ToolRegistry(session_factory, NamRuntimeContext(user_id=test_user.id))
-    expected = {"create_analysis", "search_past_analyses"}
 
-    for agent_cls in (SectorAnalystAgent, MacroStrategistAgent, EtfQuantSpecialistAgent):
-        agent = agent_cls(registry)
-        assert _tool_names(agent.tools()) == expected
+    macro = MacroStrategistAgent(registry)
+    assert _tool_names(macro.tools()) == {
+        "create_analysis",
+        "search_past_analyses",
+        "get_financials_news",
+        "get_data_from_url",
+    }
+
+    sector = SectorAnalystAgent(registry)
+    assert _tool_names(sector.tools()) == {
+        "create_analysis",
+        "search_past_analyses",
+        "get_financials_news",
+        "get_data_from_url",
+        "search_boursorama",
+        "update_index_boursorama",
+        "get_index",
+        "get_portfolio_positions",
+    }
+
+    etf = EtfQuantSpecialistAgent(registry)
+    assert _tool_names(etf.tools()) == {
+        "create_analysis",
+        "search_past_analyses",
+        "get_financials_news",
+        "get_data_from_url",
+        "search_boursorama",
+        "update_index_boursorama",
+        "get_index",
+        "get_portfolio_positions",
+        "get_etf_composition",
+    }
