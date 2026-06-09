@@ -16,6 +16,7 @@ class IndexService:
             isin=data.isin,
             index_type=data.index_type,
             boursorama_ticker=data.boursorama_ticker,
+            yahoo_symbol=data.yahoo_symbol,
         )
         session.add(index)
         try:

@@ -10,6 +10,7 @@ class IndexCreate(BaseModel):
     isin: str = Field(min_length=1, max_length=12)
     index_type: IndexType
     boursorama_ticker: str | None = Field(default=None, max_length=32)
+    yahoo_symbol: str | None = Field(default=None, max_length=32)
 
 
 class IndexRead(BaseModel):
@@ -20,4 +21,5 @@ class IndexRead(BaseModel):
     isin: str
     index_type: IndexType
     boursorama_ticker: str | None
+    yahoo_symbol: str | None
     created_at: datetime
