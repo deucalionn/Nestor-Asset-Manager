@@ -1,5 +1,30 @@
 ## Requirements
 
+### Requirement: ToolRegistry exposes all basics-tools
+`ToolRegistry` MUST instantiate every basics-tool (eight tools) bound to a `NamRuntimeContext` (or runtime `user_id`) and expose them via `all_tools() -> list[BaseTool]`.
+
+#### Scenario: Registry returns complete basics set
+- **WHEN** `ToolRegistry(session_factory, context).all_tools()` is called
+- **THEN** eight LangChain basics-tools are returned with distinct snake_case names
+
+### Requirement: Enriched tool docstrings
+Every LangChain `@tool` callable (basics-tools **and** market tools) MUST have a **multi-line** docstring exposed to the LLM. One-line docstrings are insufficient.
+
+Each docstring MUST include these labeled sections:
+
+| Section | Content |
+|---------|---------|
+| First line | Imperative one-line summary (becomes short description preview) |
+| `Use when:` | Concrete situations to invoke the tool |
+| `Do not use when:` | Anti-patterns, wrong `index_type`, or superseding tools |
+| `Returns:` | Output shape in plain language (not raw Pydantic field names only) |
+
+Market tools MUST document `COMPANY` vs `ETF` eligibility where relevant.
+
+#### Scenario: Market tool docstring is multi-line
+- **WHEN** `GetEtfCompositionTool.as_tool()` is inspected
+- **THEN** the bound tool's `description` contains `Use when:`, `Do not use when:`, and `Returns:` sections
+
 ### Requirement: Agentic package layout
 The `nam-agentic` package MUST follow the OOP directory structure defined in `openspec.md` section 2.1.
 
@@ -17,7 +42,7 @@ Agent definitions MUST be classes inheriting from `BaseSubAgent` (subagents) or 
 ### Requirement: OOP tool classes
 All custom tools MUST be classes inheriting from `BaseNamTool` with an `as_tool()` method returning a LangChain tool.
 
-The `nam-agentic` tool set MUST include Bourso market tools (`GetFinancialsNewsFromBoursoTool`, `GetDataFromUrlTool`, `SearchBoursoramaTool`, `GetEtfCompositionTool`, `UpdateIndexBoursoramaTool`) and Yahoo market tools (`GetAssetPriceFromYfTool`, `GetAssetHistoryFromYfTool`, `GetCompanyFinancialsFromYfTool`, `GetAssetNewsFromYfTool`, `SearchYahooSymbolTool`, `UpdateIndexYahooSymbolTool`) in addition to basics-tools.
+The `nam-agentic` tool set MUST include Bourso market tools (`GetFinancialsNewsFromBoursoTool`, `GetDataFromUrlTool`, `SearchBoursoramaTool`, `GetEtfCompositionTool`, `UpdateIndexBoursoramaTool`, `FetchCalendarFromBoursoTool`) and Yahoo market tools (`GetAssetPriceFromYfTool`, `GetAssetHistoryFromYfTool`, `GetCompanyFinancialsFromYfTool`, `GetAssetNewsFromYfTool`, `SearchYahooSymbolTool`, `UpdateIndexYahooSymbolTool`) in addition to basics-tools.
 
 #### Scenario: Tool base class
 - **WHEN** reviewing `nam_agentic/tools/base.py`
@@ -33,12 +58,34 @@ The `nam-agentic` tool set MUST include Bourso market tools (`GetFinancialsNewsF
 - **THEN** `GetFinancialsNewsFromBoursoTool` exists (file may be `get_financials_news_from_bourso.py`)
 - **AND** LangChain-exposed name is `get_financials_news_from_bourso`
 
+#### Scenario: Calendar fetch tool class exists
+- **WHEN** reviewing `nam_agentic/tools/market/`
+- **THEN** `FetchCalendarFromBoursoTool` exists
+- **AND** LangChain-exposed name is `fetch_calendar_from_bourso`
+
 ### Requirement: Deep agent factory stub
 `DeepAgentFactory` MUST exist and expose a `build()` method that calls `create_deep_agent()` from the `deepagents` package.
+
+`build()` MUST pass `backend=build_agent_backend()` (see `agent-shared-backend` spec) so PM and subagents share `/shared/` on a volume-backed `FilesystemBackend`.
+
+#### Scenario: Factory builds graph with shared backend
+- **WHEN** `DeepAgentFactory(...).build()` is called with valid configuration
+- **THEN** a compiled LangGraph agent is returned
+- **AND** `create_deep_agent` receives a `CompositeBackend` with `/shared/` routed to `{agent_workspace_dir}/shared`
 
 #### Scenario: Factory builds graph
 - **WHEN** `DeepAgentFactory(...).build()` is called with valid configuration
 - **THEN** a compiled LangGraph agent is returned (may use stub tools in this change)
+
+### Requirement: Portfolio Manager calendar tool wiring
+`PortfolioManagerAgent.tools()` MUST include `fetch_calendar_from_bourso` from `ToolRegistry`.
+
+No subagent class MAY include `fetch_calendar_from_bourso`.
+
+#### Scenario: Registry exposes calendar fetch on PM path only
+- **WHEN** `ToolRegistry` is constructed
+- **THEN** a `fetch_calendar_from_bourso` tool is available for PM wiring
+- **AND** Sector, Macro, and ETF subagent tool lists exclude it
 
 ### Requirement: Agent runner
 `AgentRunner` MUST wrap the compiled agent with `invoke()` and `stream()` async methods accepting `NamRuntimeContext`.
@@ -62,7 +109,7 @@ The `nam-agentic` tool set MUST include Bourso market tools (`GetFinancialsNewsF
 - **THEN** the instance is immutable (`frozen=True`)
 
 ### Requirement: Package-specific settings
-`nam_api/settings.py` and `nam_agentic/settings.py` MUST exist as pydantic-settings classes for package-specific configuration. Agentic settings include: `LLM_MODEL`, `LLM_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `DEFAULT_USER_ID`, `MARKET_TIMEZONE`, `yahoo_resolve_prefer_suffix`, `yahoo_request_timeout_sec`.
+`nam_api/settings.py` and `nam_agentic/settings.py` MUST exist as pydantic-settings classes for package-specific configuration. Agentic settings include: `LLM_MODEL`, `LLM_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `DEFAULT_USER_ID`, `MARKET_TIMEZONE`, `AGENT_WORKSPACE_DIR`, `yahoo_resolve_prefer_suffix`, `yahoo_request_timeout_sec`.
 
 #### Scenario: Settings modules exist
 - **WHEN** each package is scaffolded

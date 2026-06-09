@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 pytestmark = pytest.mark.asyncio
 
 
-async def test_registry_exposes_nineteen_tools(
+async def test_registry_exposes_twenty_tools(
     session_factory: async_sessionmaker[AsyncSession],
     test_user: User,
 ) -> None:
@@ -21,7 +21,7 @@ async def test_registry_exposes_nineteen_tools(
     tools = registry.all_tools()
     names = {tool.name for tool in tools}
 
-    assert len(tools) == 19
+    assert len(tools) == 20
     assert names == {
         "create_analysis",
         "create_recommendation",
@@ -42,6 +42,7 @@ async def test_registry_exposes_nineteen_tools(
         "get_asset_news_from_yf",
         "search_yahoo_symbol",
         "update_index_yahoo_symbol",
+        "fetch_calendar_from_bourso",
     }
     assert "get_financials_news" not in names
 

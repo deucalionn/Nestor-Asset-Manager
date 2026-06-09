@@ -30,7 +30,7 @@ Use `trigger` = `MARKET_SESSION` or `MANUAL`. Optional `index_id` when scoped to
 - `search_past_analyses`
 - `create_analysis`
 
-**ETF workflow:** `get_financials_news_from_bourso` (MARKETS/FINANCE/CALENDAR_*) → optional global hub via `get_data_from_url` → `get_etf_composition` → Yahoo: `get_asset_price_from_yf`, `get_asset_history_from_yf` on the ETF → for top **COMPANY** holdings run `search_boursorama` + company news (never `/cours/actualites/{etf_ticker}/`).
+**ETF workflow:** `read_file("/shared/calendar/today.md")` at session start when macro timing matters → `get_financials_news_from_bourso` (MARKETS/FINANCE only) → optional global hub via `get_data_from_url` → `get_etf_composition` → Yahoo: `get_asset_price_from_yf`, `get_asset_history_from_yf` on the ETF → for top **COMPANY** holdings run `search_boursorama` + company news (never `/cours/actualites/{etf_ticker}/`).
 
 **Source choice:** Bourso cache for macro headlines; Yahoo for ETF/index prices and history. Call each source explicitly.
 

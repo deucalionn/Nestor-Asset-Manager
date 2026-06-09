@@ -35,6 +35,7 @@ async def test_portfolio_manager_tools(
         "get_index",
         "create_index",
         "create_recommendation",
+        "fetch_calendar_from_bourso",
     }
 
 
@@ -92,3 +93,6 @@ async def test_subagent_tools(
         "get_asset_history_from_yf",
         "get_asset_news_from_yf",
     }
+    assert "fetch_calendar_from_bourso" not in _tool_names(macro.tools())
+    assert "fetch_calendar_from_bourso" not in _tool_names(sector.tools())
+    assert "fetch_calendar_from_bourso" not in _tool_names(etf.tools())

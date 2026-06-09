@@ -20,6 +20,7 @@ back:
     just sync
     just up
     just migrate
+    mkdir -p data/agent_workspace/shared
     trap 'kill $(jobs -p) 2>/dev/null || true' EXIT INT TERM
     echo "API → http://localhost:8000  |  Agent → http://localhost:8001"
     uv run --directory api uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000 &

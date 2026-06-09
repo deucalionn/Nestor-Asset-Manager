@@ -4,6 +4,7 @@ from langchain_core.tools import BaseTool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.context import NamRuntimeContext
+from nam_agentic.tools.market.fetch_calendar_from_bourso import FetchCalendarFromBoursoTool
 from nam_agentic.tools.market.get_asset_history_from_yf import GetAssetHistoryFromYfTool
 from nam_agentic.tools.market.get_asset_news_from_yf import GetAssetNewsFromYfTool
 from nam_agentic.tools.market.get_asset_price_from_yf import GetAssetPriceFromYfTool
@@ -90,6 +91,7 @@ class ToolRegistry:
             session_factory, client=yahoo
         ).as_tool()
         self.update_index_yahoo_symbol = UpdateIndexYahooSymbolTool(session_factory).as_tool()
+        self.fetch_calendar_from_bourso = FetchCalendarFromBoursoTool().as_tool()
 
         self._tools: list[BaseTool] = [
             self.create_analysis,
@@ -111,6 +113,7 @@ class ToolRegistry:
             self.get_asset_news_from_yf,
             self.search_yahoo_symbol,
             self.update_index_yahoo_symbol,
+            self.fetch_calendar_from_bourso,
         ]
 
     def all_tools(self) -> list[BaseTool]:

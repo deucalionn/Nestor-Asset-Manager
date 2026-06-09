@@ -26,6 +26,7 @@ class PortfolioManagerAgent:
             self._tools.get_index,
             self._tools.create_index,
             self._tools.create_recommendation,
+            self._tools.fetch_calendar_from_bourso,
         ]
 
     def system_prompt(self) -> str:

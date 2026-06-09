@@ -43,4 +43,6 @@ Return the `analysis_id` to the PM — it is required for `create_recommendation
 
 **Source choice:** Bourso for FR news and key figures; Yahoo for live prices, history, and structured financials. Call each explicitly — no automatic dual-fetch.
 
+**Calendar timing:** Prefer `read_file("/shared/calendar/today.md")` at session start when earnings or macro events matter. Flag stale `_fetched_at` dates — do not use `CALENDAR_*` SQL filters as primary calendar source.
+
 Tools: `search_past_analyses`, `create_analysis`, `get_financials_news_from_bourso`, `get_data_from_url`, `search_boursorama`, `update_index_boursorama`, `search_yahoo_symbol`, `update_index_yahoo_symbol`, `get_asset_price_from_yf`, `get_asset_history_from_yf`, `get_company_financials_from_yf`, `get_asset_news_from_yf`, `get_index`, `get_portfolio_positions`.

@@ -1,9 +1,11 @@
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
 from nam_agentic.context import NamRuntimeContext
 from nam_agentic.enums import Market, MarketPhase
+from nam_agentic.runner import AgentRunner
 from nam_agentic.schemas.events import AgentEvent, EventType
 from nam_agentic.settings import settings
 from nam_agentic.tools.services.boursorama.ingest import NewsIngestService
@@ -12,25 +14,44 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
+RunnerFactory = Callable[[], AgentRunner]
+
+
+def market_session_seed_message(market: Market, phase: MarketPhase) -> str:
+    return (
+        f"Run the {market.value} {phase.value} portfolio cycle. "
+        "Follow PORTFOLIO.md: load user context, refresh the shared calendar if stale, "
+        "then delegate to subagents as needed."
+    )
+
 
 class EventHandler:
-    """Routes inbound events to agent runs.
-
-    Skeleton only — wire AgentRunner.invoke() in each _on_* method when
-    implementing agents, subagents, and tools (hand-owned).
-    """
+    """Routes inbound events to agent runs or background ingest."""
 
     def __init__(
         self,
         workspace_dir: Path | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
+        agent_runner: AgentRunner | None = None,
+        runner_factory: RunnerFactory | None = None,
     ) -> None:
         self._workspace_dir = workspace_dir or settings.agent_workspace_dir
         self._session_factory = session_factory or async_session_factory
         self._news_ingest = NewsIngestService(self._session_factory)
+        self._agent_runner = agent_runner
+        self._runner_factory = runner_factory
+
+    def _resolve_runner(self) -> AgentRunner | None:
+        if self._agent_runner is not None:
+            return self._agent_runner
+        if self._runner_factory is None:
+            return None
+        self._agent_runner = self._runner_factory()
+        return self._agent_runner
 
     async def handle(self, event: AgentEvent) -> None:
         self._workspace_dir.mkdir(parents=True, exist_ok=True)
+        (self._workspace_dir / "shared").mkdir(parents=True, exist_ok=True)
         logger.info("Event received: type=%s user_id=%s", event.type, event.user_id)
 
         match event.type:
@@ -42,8 +63,6 @@ class EventHandler:
                 await self._on_chat_message(event)
             case EventType.MARKET_SESSION:
                 await self._on_market_session(event)
-            case EventType.NEWS_INGEST_DAILY:
-                await self._on_news_ingest_daily(event)
             case EventType.NEWS_INGEST_SESSION:
                 await self._on_news_ingest_session(event)
 
@@ -53,7 +72,6 @@ class EventHandler:
             "Onboarding run queued for user %s — agent writes workspace files",
             user_id,
         )
-        # Hand-owned: AgentRunner.invoke(onboarding prompt, context=...)
         _ = NamRuntimeContext(user_id=user_id, phase=MarketPhase.MANUAL)
 
     async def _on_user_profile_updated(self, event: AgentEvent) -> None:
@@ -74,15 +92,15 @@ class EventHandler:
         market = Market(event.payload["market"])
         phase = MarketPhase(event.payload["phase"])
         user_id = UUID(settings.default_user_id)
+        context = NamRuntimeContext(user_id=user_id, market=market, phase=phase)
         logger.info("Market session event: market=%s phase=%s", market.value, phase.value)
-        _ = NamRuntimeContext(user_id=user_id, market=market, phase=phase)
 
-    async def _on_news_ingest_daily(self, event: AgentEvent) -> None:
-        if not settings.news_ingest_enabled:
-            logger.info("News ingest disabled — skipping daily ingest")
+        if self._resolve_runner() is None:
+            logger.warning("AgentRunner not configured — skipping market session invoke")
             return
-        run_id = await self._news_ingest.ingest_daily()
-        logger.info("Daily news ingest completed run_id=%s (event=%s)", run_id, event.type)
+
+        message = market_session_seed_message(market, phase)
+        await self._resolve_runner().invoke(message, context=context)
 
     async def _on_news_ingest_session(self, event: AgentEvent) -> None:
         if not settings.news_ingest_enabled:

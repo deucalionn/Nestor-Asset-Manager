@@ -1,6 +1,9 @@
 from nam_agentic.tools.services.boursorama.client import BoursoramaHttpClient
-from nam_agentic.tools.services.boursorama.errors import BoursoramaParseError, BoursoramaRateLimitError
-from nam_agentic.tools.services.boursorama.feeds import DAILY_FEEDS, SESSION_FEEDS, IngestFeed
+from nam_agentic.tools.services.boursorama.errors import (
+    BoursoramaParseError,
+    BoursoramaRateLimitError,
+)
+from nam_agentic.tools.services.boursorama.feeds import CALENDAR_FEEDS, SESSION_FEEDS, IngestFeed
 from nam_agentic.tools.services.boursorama.ingest import NewsIngestService
 from nam_agentic.tools.services.boursorama.list_parser import ListNewsEntry, parse_list_page
 from nam_agentic.tools.services.boursorama.resolver import BoursoramaIndexResolver, ResolvedIndex
@@ -18,7 +21,7 @@ __all__ = [
     "BoursoramaIndexResolver",
     "BoursoramaParseError",
     "BoursoramaRateLimitError",
-    "DAILY_FEEDS",
+    "CALENDAR_FEEDS",
     "IngestFeed",
     "ListNewsEntry",
     "NewsIngestService",

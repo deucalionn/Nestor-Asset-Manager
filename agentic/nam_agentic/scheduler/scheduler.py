@@ -128,18 +128,8 @@ def register_news_ingest_jobs(
     *,
     timezone: str,
 ) -> None:
-    """Register Boursorama news ingest cron jobs (Europe/Paris)."""
+    """Register Boursorama session news ingest cron jobs (Europe/Paris)."""
     tz = ZoneInfo(timezone)
-
-    async def _daily() -> None:
-        await callback(AgentEvent(type=EventType.NEWS_INGEST_DAILY))
-
-    scheduler.add_job(
-        _daily,
-        CronTrigger(hour=7, minute=0, timezone=tz),
-        id="news-ingest-daily",
-        replace_existing=True,
-    )
 
     eu_session = next(s for s in MARKET_SESSIONS if s.market == Market.EU)
     post_open = _add_minutes(eu_session.open_time, 20)

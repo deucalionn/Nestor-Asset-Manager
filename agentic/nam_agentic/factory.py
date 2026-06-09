@@ -5,6 +5,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from nam_agentic.agents.base import BaseSubAgent
 from nam_agentic.agents.portfolio_manager import PortfolioManagerAgent
+from nam_agentic.backends.shared import build_agent_backend
 
 CompiledDeepAgent = CompiledStateGraph[Any, Any, Any, Any]
 
@@ -29,4 +30,5 @@ class DeepAgentFactory:
             system_prompt=self._pm.system_prompt(),
             tools=self._pm.tools(),
             subagents=subagent_specs,
+            backend=build_agent_backend(),
         )
