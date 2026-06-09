@@ -21,10 +21,11 @@ class CreateIndexTool(BaseNamTool):
             isin: str,
             index_type: IndexType,
             boursorama_ticker: str | None = None,
+            yahoo_symbol: str | None = None,
         ) -> CreateIndexOutput:
             """Create or return an existing index by ISIN.
 
-            Use when: registering a portfolio line with index_type and optional Bourso ticker.
+            Use when: registering a portfolio line with index_type and optional tickers.
             Do not use when: the index already exists — returns the existing row unchanged.
             Returns: index_id, name, isin, and whether a new row was created.
             """
@@ -45,6 +46,7 @@ class CreateIndexTool(BaseNamTool):
                     isin=isin,
                     index_type=index_type,
                     boursorama_ticker=boursorama_ticker,
+                    yahoo_symbol=yahoo_symbol,
                 )
                 session.add(index)
                 await session.commit()
