@@ -10,7 +10,6 @@ class EventType(StrEnum):
     USER_PROFILE_UPDATED = "user.profile.updated"
     CHAT_MESSAGE = "chat.message"
     MARKET_SESSION = "market.session"
-    NEWS_INGEST_DAILY = "news.ingest.daily"
     NEWS_INGEST_SESSION = "news.ingest.session"
 
 

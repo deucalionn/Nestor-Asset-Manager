@@ -15,7 +15,7 @@ class IngestFeed:
         return f"{BOURSORAMA_BASE}{self.path}"
 
 
-DAILY_FEEDS: tuple[IngestFeed, ...] = (
+CALENDAR_FEEDS: tuple[IngestFeed, ...] = (
     IngestFeed("/bourse/actualites/calendriers/", NewsCategory.CALENDAR_GENERAL),
     IngestFeed(
         "/bourse/actualites/calendriers/societes-cotees",

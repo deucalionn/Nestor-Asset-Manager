@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.tools.services.boursorama.client import BoursoramaHttpClient
 from nam_agentic.tools.services.boursorama.errors import BoursoramaParseError
-from nam_agentic.tools.services.boursorama.feeds import DAILY_FEEDS, SESSION_FEEDS, IngestFeed
+from nam_agentic.tools.services.boursorama.feeds import SESSION_FEEDS, IngestFeed
 from nam_agentic.tools.services.boursorama.list_parser import parse_list_page
 from nam_agentic.tools.services.embedding import EmbeddingService, OllamaEmbeddingService
 from nam_agentic.tools.services.news_item_store import NewsItemStore, NewsUpsertPayload
@@ -26,9 +26,6 @@ class NewsIngestService:
         self._session_factory = session_factory
         self._client = client or BoursoramaHttpClient()
         self._store = NewsItemStore(embedding_service or OllamaEmbeddingService())
-
-    async def ingest_daily(self) -> UUID:
-        return await self._ingest_feeds(DAILY_FEEDS)
 
     async def ingest_session(self) -> UUID:
         return await self._ingest_feeds(SESSION_FEEDS)
