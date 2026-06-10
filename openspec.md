@@ -1,7 +1,7 @@
 # Nestor Asset Manager (NAM) — OpenSpec
 
-> **Version**: 0.2.1  
-> **Status**: Partial implementation — portfolio API + agent runtime + chat stream  
+> **Version**: 0.2.2  
+> **Status**: Partial implementation — portfolio API + agent runtime + multi-thread chat  
 > **Standard**: OpenSpec (Fission-AI) — master reference document  
 > **Last updated**: 2026-06-10
 
@@ -356,6 +356,8 @@ User ─────────────┬───────────
   │                                                  │
   ├── Analysis (content_embedding: vector) ─────────┘ (optional index_id)
   │
+  ├── ChatThread (id = LangGraph thread_id, title, updated_at)
+  │
   └── Recommendation ──── recommendation_analyses ──── Analysis
                          (M:N junction)
 ```
@@ -702,6 +704,9 @@ The system MUST support cosine similarity search on `analyses.content_embedding`
 | GET | `/recommendations` | Recommendation list (optional `status` filter) |
 | GET | `/recommendations/{id}` | Recommendation detail with linked analyses |
 | PATCH | `/recommendations/{id}` | Applied/Rejected + comment |
+| GET/POST | `/chat/threads` | List/create conversation metadata |
+| PATCH/DELETE | `/chat/threads/{id}` | Rename/delete conversation |
+| GET | `/chat/threads/{id}/messages` | Message history (proxied to agentic checkpoint) |
 | POST | `/trigger-analysis` | On-demand analysis (future) |
 | WS | `/ws/chat` | Chat — proxies to nam-agentic `POST /chat/stream` |
 
@@ -758,7 +763,7 @@ Deep Agents is LangChain's **agent harness** built on LangGraph. Instead of hand
 
 | Built-in capability | Tool / feature | NAM usage |
 |--------------------|----------------|-----------|
-| Planning | `write_todos` | PM decomposes market briefs |
+| Planning | `write_todos` | PM decomposes **scheduled** market briefs only — not simple chat Q&A |
 | Subagent delegation | `task` | PM → Sector / Macro / ETF analysts |
 | Context management | Virtual filesystem + compression | Long analysis sessions |
 | Custom tools | User-defined | Portfolio, market, DB tools |
@@ -1192,15 +1197,17 @@ class AgentRunner:
 
 ### 8.11 PM behavior (via system prompt)
 
-`PORTFOLIO.md` MUST include instructions covering:
+`PORTFOLIO.md` defines **two trigger modes** in one role:
 
-1. Always call `get_user_context` and `get_portfolio_positions` first
-2. Use `write_todos` to plan the cycle
-3. Delegate to subagents via `task()` — parallel when possible
-4. Weight subagent outputs according to user strategy
-5. Call `search_past_analyses` before final synthesis
-6. Create exactly one recommendation via `create_recommendation` (status `Pending`)
-7. Never place orders — human validates via API
+1. **Direct user questions (chat)** — answer the latest message only; fetch news via tools when asked (market closed ≠ no headlines); no `write_todos` for straightforward Q&A; no plan preamble in the user-facing reply.
+2. **Scheduled portfolio cycle (events)** — full committee loop: `write_todos`, delegate via `task()`, synthesize, optional `create_recommendation`.
+
+Shared rules for both modes:
+
+1. Call `get_user_context` and `get_portfolio_positions` when portfolio context is needed
+2. Weight subagent outputs according to user strategy
+3. Call `search_past_analyses` before final synthesis when relevant
+4. Never place orders — human validates via API
 
 Subagent markdown prompts (`SECTOR_ANALYST.md`, etc.) MUST NOT include direct recommendation instructions.
 
@@ -1549,7 +1556,7 @@ sequenceDiagram
 
 | Phase | Feature |
 |-------|---------|
-| v1.1 | Persistent chat threads (LangGraph checkpointer) |
+| v1.1 | ~~Persistent chat threads~~ (implemented — LangGraph checkpointer + `chat_threads` metadata + sidebar) |
 | v1.2 | Admin UI to adjust market hours without restart |
 | v2.0 | Multi-user deployments, RBAC, authentication (if ever needed) |
 | v2.1 | Broker integration (read-only) |
