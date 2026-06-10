@@ -163,6 +163,6 @@ just down    # or: docker compose down
 2. `api-portfolio-core` — portfolio CRUD + Docker tests ✓
 3. `agent-runtime-service` — agentic FastAPI + event bus + scheduler ✓
 4. **Deep agent (hand-owned)** — wire `EventHandler` → `AgentRunner`, implement agents/subagents/tools
-5. **Chat proxy (optional)** — API WebSocket → `chat.message` events
+5. **Chat proxy** — API WebSocket `/ws/chat` → agentic `POST /chat/stream`
 
 See `openspec.md` for the full specification.
