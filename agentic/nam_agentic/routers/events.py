@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, status
-from nam_agentic.dependencies import event_handler
+from nam_agentic.runtime import get_event_handler
 from nam_agentic.schemas.events import AgentEvent, AgentEventAccepted
 
 router = APIRouter(tags=["events"])
@@ -14,5 +14,5 @@ async def receive_event(
     event: AgentEvent,
     background_tasks: BackgroundTasks,
 ) -> AgentEventAccepted:
-    background_tasks.add_task(event_handler.handle, event)
+    background_tasks.add_task(get_event_handler().handle, event)
     return AgentEventAccepted(type=event.type)
