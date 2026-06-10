@@ -6,6 +6,7 @@ import { useProfileGuard } from "@/src/lib/useProfileGuard";
 import { useState } from "react";
 import { AddHoldingModal } from "./AddHoldingModal";
 import { joinHoldings, PositionsTable } from "./PositionsTable";
+import { RecommendationsSection } from "./RecommendationsSection";
 import styles from "./DashboardView.module.css";
 
 export function DashboardView() {
@@ -62,6 +63,8 @@ export function DashboardView() {
       ) : (
         <PositionsTable holdings={holdings} />
       )}
+
+      <RecommendationsSection />
 
       <AddHoldingModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>

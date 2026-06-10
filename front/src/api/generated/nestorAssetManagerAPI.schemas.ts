@@ -92,6 +92,13 @@ export interface PositionRead {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   average_cost: string;
   last_update: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
+  current_price?: string | null;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
+  market_value?: string | null;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
+  unrealized_pnl?: string | null;
+  gain_loss_pct?: number | null;
 }
 
 export type RecommendationType = typeof RecommendationType[keyof typeof RecommendationType];

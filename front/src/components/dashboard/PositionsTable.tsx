@@ -21,15 +21,72 @@ function costBasis(quantity: string, averageCost: string): number {
   return Number(quantity) * Number(averageCost);
 }
 
+function formatPct(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toLocaleString("fr-FR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} %`;
+}
+
+function formatSignedEuro(value: string | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "—";
+  const sign = num > 0 ? "+" : "";
+  return `${sign}${formatDecimal(String(num))} €`;
+}
+
+function pnlClass(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return styles.pnlFlat;
+  }
+  if (value > 0) return styles.pnlUp;
+  if (value < 0) return styles.pnlDown;
+  return styles.pnlFlat;
+}
+
+function PnlCell({
+  pct,
+  amount,
+}: {
+  pct: number | null | undefined;
+  amount?: string | null;
+}) {
+  const label = formatPct(pct);
+  const tone = pnlClass(pct);
+
+  return (
+    <td className={styles.pnlCell}>
+      <span className={`${styles.pnlBadge} ${tone}`} title={amount ? formatSignedEuro(amount) : undefined}>
+        {label}
+      </span>
+    </td>
+  );
+}
+
 type Props = {
   holdings: HoldingRow[];
 };
 
 export function PositionsTable({ holdings }: Props) {
-  const totalCost = holdings.reduce(
-    (sum, row) => sum + costBasis(row.quantity, row.average_cost),
-    0,
+  const totals = holdings.reduce(
+    (acc, row) => {
+      const rowCost = costBasis(row.quantity, row.average_cost);
+      acc.cost += rowCost;
+      if (row.market_value != null) {
+        acc.market += Number(row.market_value);
+        acc.pricedCost += rowCost;
+      }
+      return acc;
+    },
+    { cost: 0, market: 0, pricedCost: 0 },
   );
+  const totalPnlPct =
+    totals.pricedCost > 0
+      ? ((totals.market - totals.pricedCost) / totals.pricedCost) * 100
+      : null;
 
   return (
     <div className={styles.wrapper}>
@@ -54,7 +111,7 @@ export function PositionsTable({ holdings }: Props) {
               <td className={styles.num}>
                 {formatDecimal(String(costBasis(row.quantity, row.average_cost)))} €
               </td>
-              <td className={`${styles.num} ${styles.placeholder}`}>—</td>
+              <PnlCell pct={row.gain_loss_pct} amount={row.unrealized_pnl} />
             </tr>
           ))}
         </tbody>
@@ -64,8 +121,8 @@ export function PositionsTable({ holdings }: Props) {
               <td colSpan={4} className={styles.totalLabel}>
                 Total coût d&apos;acquisition
               </td>
-              <td className={styles.num}>{formatDecimal(String(totalCost))} €</td>
-              <td className={`${styles.num} ${styles.placeholder}`}>—</td>
+              <td className={styles.num}>{formatDecimal(String(totals.cost))} €</td>
+              <PnlCell pct={totalPnlPct} />
             </tr>
           </tfoot>
         )}
