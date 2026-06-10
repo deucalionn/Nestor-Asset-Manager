@@ -14,6 +14,7 @@ from nam_db.enums import Strategy
 
 if TYPE_CHECKING:
     from nam_db.models.analysis import Analysis
+    from nam_db.models.chat_thread import ChatThread
     from nam_db.models.position import Position
     from nam_db.models.recommendation import Recommendation
     from nam_db.models.transaction import Transaction
@@ -46,3 +47,4 @@ class User(Base):
     positions: Mapped[list[Position]] = relationship(back_populates="user")
     analyses: Mapped[list[Analysis]] = relationship(back_populates="user")
     recommendations: Mapped[list[Recommendation]] = relationship(back_populates="user")
+    chat_threads: Mapped[list[ChatThread]] = relationship(back_populates="user")
