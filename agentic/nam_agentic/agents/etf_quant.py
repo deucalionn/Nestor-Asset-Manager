@@ -15,7 +15,11 @@ class EtfQuantSpecialistAgent(BaseSubAgent):
 
     @property
     def description(self) -> str:
-        return "Evaluates ETF exposure, factor tilts, and quantitative signals."
+        return (
+            "ETF and passive exposure: composition, factor tilts, benchmark comparison. "
+            "Uses get_etf_composition and Yahoo data. "
+            "Use for ETF/NASDAQ-100/Euro Stoxx allocation questions — not single-stock CA/marges."
+        )
 
     @property
     def prompt_file(self) -> str:

@@ -39,6 +39,8 @@ Return the `analysis_id` to the PM — it is required for `create_recommendation
 
 **COMPANY workflow:** `get_index` / `get_portfolio_positions` (DB-first tickers) → `search_boursorama` / `search_yahoo_symbol` if missing → Bourso: `get_data_from_url` on `news_url` and `key_figures_url` → Yahoo: `get_asset_price_from_yf`, `get_asset_history_from_yf`, `get_company_financials_from_yf`, `get_asset_news_from_yf` as needed.
 
+**PRICE / COURS requests:** always `search_yahoo_symbol(query=company name)` first, then `get_asset_price_from_yf(yahoo_symbol=…)`. Never guess tickers (e.g. `STM.PA` is invalid for STMicro — use lookup). Return last_price, currency, and previous_close in your memo.
+
 **ETF lines in portfolio:** do not fetch company news for the ETF ticker — use `get_financials_news_from_bourso` + global hub; route to ETF Quant for composition.
 
 **Source choice:** Bourso for FR news and key figures; Yahoo for live prices, history, and structured financials. Call each explicitly — no automatic dual-fetch.

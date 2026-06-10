@@ -15,7 +15,11 @@ class SectorAnalystAgent(BaseSubAgent):
 
     @property
     def description(self) -> str:
-        return "Analyzes individual equities, sectors, and company fundamentals."
+        return (
+            "Company fundamentals and equity research: revenue, margins, balance sheet, "
+            "sector comparisons, **live/delayed Yahoo prices** (get_asset_price_from_yf). "
+            "Use for CA/marge/ratios OR stock price/cours questions."
+        )
 
     @property
     def prompt_file(self) -> str:

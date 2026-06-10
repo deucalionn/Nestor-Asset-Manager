@@ -9,7 +9,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from nam_agentic.bootstrap import build_agent_runner, build_event_handler
 from nam_agentic.checkpoint_url import to_psycopg_conn_string
-from nam_agentic.routers import chat, events, health
+from nam_agentic.routers import chat, chat_threads, events, health
 from nam_agentic.runtime import AgentRuntime, set_runtime
 from nam_agentic.scheduler.scheduler import register_market_jobs, register_news_ingest_jobs
 from nam_agentic.schemas.events import AgentEvent
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(events.router)
     app.include_router(chat.router)
+    app.include_router(chat_threads.router)
     return app
 
 
