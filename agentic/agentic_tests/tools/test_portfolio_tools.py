@@ -41,6 +41,41 @@ async def test_get_portfolio_positions_gain_loss_pct(
     position = result["positions"][0]
     assert position["gain_loss_pct"] == pytest.approx(10.0)
     assert position["current_price"] == "110"
+    assert result["total_market_value"] == "1100"
+    assert result["total_market_value_is_complete"] is True
+
+
+async def test_get_portfolio_positions_partial_total_when_price_missing(
+    session_factory: async_sessionmaker[AsyncSession],
+    test_user: User,
+    test_index: Index,
+    test_position,
+    db_session: AsyncSession,
+) -> None:
+    from nam_agentic.tools.services.market_price import StubMarketPriceProvider
+
+    other = Index(name="No Price Co", isin="FR0000000001")
+    db_session.add(other)
+    await db_session.flush()
+    from nam_db.models.position import Position
+
+    db_session.add(
+        Position(
+            user_id=test_user.id,
+            index_id=other.id,
+            quantity=Decimal("5"),
+            average_cost=Decimal("10"),
+        )
+    )
+    await db_session.commit()
+
+    prices = FakeMarketPriceProvider({test_index.isin: Decimal("110")})
+    tool = GetPortfolioPositionsTool(session_factory, test_user.id, prices).as_tool()
+    result = as_dict(await tool.ainvoke({}))
+
+    assert len(result["positions"]) == 2
+    assert result["total_market_value"] == "1100"
+    assert result["total_market_value_is_complete"] is False
 
 
 async def test_get_portfolio_positions_empty(

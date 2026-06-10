@@ -97,3 +97,13 @@ async def test_analysis(db_session: AsyncSession, test_user: User) -> Analysis:
     await db_session.commit()
     await db_session.refresh(analysis)
     return analysis
+
+
+@pytest.fixture
+def mock_agent_runner():
+    from unittest.mock import AsyncMock, MagicMock
+
+    runner = MagicMock()
+    runner.invoke = AsyncMock(return_value={"messages": []})
+    runner.stream_events = AsyncMock()
+    return runner

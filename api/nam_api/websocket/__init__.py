@@ -1,1 +1,1 @@
-"""WebSocket chat stub — Deep Agent streaming integration deferred to deep-agent-core change."""
+"""WebSocket chat proxy — relays client messages to nam-agentic POST /chat/stream."""

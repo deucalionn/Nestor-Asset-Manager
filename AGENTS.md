@@ -76,40 +76,45 @@ test(api): add position calculator unit tests
 - Singleton user: `POST /setup`, `GET|PUT /profile`
 - Portfolio: `/indices`, `/transactions`, `/positions`
 - After setup/profile update → fire-and-forget `POST {AGENTIC_URL}/events`
+- Chat: `WS /ws/chat` → HTTP stream proxy to agentic `POST /chat/stream`
 - No auth in v1
 
 ### nam-agentic (:8001)
 
 - `GET /health`, `POST /events` (202, async via BackgroundTasks)
+- `POST /chat/stream` — NDJSON chat stream (tokens, status, done, error)
 - APScheduler in FastAPI **lifespan** — market cron EU/US/ASIA
-- `EventHandler` routes events to stub hooks — **hand-owned** implementation
+- Compiled Deep Agent built **once** at startup (Postgres checkpointer by default)
+- `EventHandler` routes events → `AgentRunner.invoke()` for market + profile lifecycle
 
 Event types (`agentic/nam_agentic/schemas/events.py`):
 
-- `user.profile.created` / `user.profile.updated`
+- `user.profile.created` / `user.profile.updated` → onboarding / refresh seeds
 - `market.session` (cron)
-- `chat.message` (future)
+- `news.ingest.session` (cron, no agent invoke)
+
+Chat is **not** on the event bus — front → API WebSocket → agentic `/chat/stream`.
 
 ### Hand-owned (human implements)
 
 Do **not** auto-implement unless explicitly asked:
 
-- `DeepAgentFactory`, `AgentRunner` wiring in `EventHandler`
 - Subagent classes (`agents/`), tools (`tools/`), prompts content
-- Writing `USER_GOALS.md` and other workspace files
-- WebSocket chat proxy on API
+- Prompt prose in `prompts/` (CHAT.md, PORTFOLIO.md, etc.)
+- Tuning agent behaviour (committee flow, recommendation policy)
 
-Extension point: `agentic/nam_agentic/services/event_handler.py` → inject `AgentRunner` in each `_on_*` method.
+Wiring (`DeepAgentFactory`, `AgentRunner`, checkpointer, chat proxy) is **implemented** — extend via `event_handler.py` seeds and agent/tool classes.
 
 ## Tests
 
 ```bash
-just test          # API suite in Docker (32 tests)
-uv run pytest agentic/tests -q
-just lint
-just back          # Postgres + migrate + api + agentic
-just app           # back + Next.js front
-just front         # front only (backend must already run)
+just app           # Docker: db + migrate + api + agentic + front (Ollama on host)
+just back          # Docker: backend only
+just test          # API + agentic tests in Docker
+just lint          # ruff (local uv)
+just api           # single service, local uv (debug)
+just agentic       # single service, local uv (debug)
+just front         # Next.js only, local pnpm (backend must run)
 ```
 
 ## Code style
@@ -123,4 +128,5 @@ just front         # front only (backend must already run)
 
 - Master reference: `openspec.md`
 - Active/completed changes: `openspec/changes/<name>/`
-- Completed: `api-portfolio-core`, `agent-runtime-service`
+- Completed: `api-portfolio-core`, `agent-runtime-service`, …
+- In progress: `agent-runtime-wiring` (chat stream, checkpointer, profile invoke)

@@ -55,10 +55,14 @@ Use `create_index` to register a new tradable instrument (name + ISIN) before re
 - `create_index`
 - `create_recommendation`
 - `fetch_calendar_from_bourso`
+- `get_financials_news_from_bourso` — cached Bourso headlines (per ticker or macro)
+- `get_asset_news_from_yf` — live Yahoo ticker news
+- `search_boursorama` — resolve Bourso ticker and news URLs
+- `get_data_from_url` — deep-read a Bourso article or hub when cache is stale
 
 **Deep Agents harness (built-in):**
 - `write_todos` — plan multi-step cycles
 - `task` — delegate to subagents
-- `read_file`, `write_file`, `grep` — shared workspace under `/shared/` (calendar lives at `/shared/calendar/today.md`)
+- `read_file`, `write_file`, `grep` — shared workspace under `/shared/` (calendar at `/shared/calendar/today.md`) and per-user goals at `/user/{user_id}/USER_GOALS.md`
 
 **Not yet available:** `calculate_portfolio_weights` (derive allocation insight from `get_portfolio_positions` for now).

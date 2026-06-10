@@ -5,6 +5,7 @@ from nam_db.enums import AgentRole
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.tools.base import BaseNamTool
+from nam_agentic.tools.errors import ToolError
 from nam_agentic.tools.schemas.memory import SearchPastAnalysesInput, SearchPastAnalysesOutput
 from nam_agentic.tools.services.analysis_search import AnalysisSearchService
 from nam_agentic.tools.services.embedding import EmbeddingService
@@ -43,7 +44,12 @@ class SearchPastAnalysesTool(BaseNamTool):
             or get_asset_news_from_yf instead.
             Returns: ranked analyses with title, agent, content excerpt, and dates.
             """
-            query_vector = await embedding_service.embed(query)
+            try:
+                query_vector = await embedding_service.embed(query)
+            except Exception as exc:
+                raise ToolError(
+                    f"Semantic search unavailable (embedding model missing or down): {exc}"
+                ) from exc
             async with session_factory() as session:
                 results = await search_service.search(
                     session,

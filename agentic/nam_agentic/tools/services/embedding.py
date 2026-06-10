@@ -1,3 +1,4 @@
+import math
 from typing import Protocol
 
 from nam_agentic.settings import settings
@@ -41,7 +42,22 @@ class OllamaEmbeddingService:
 
         client = OllamaEmbeddings(model=self._model, base_url=self._base_url)
         vector = await client.aembed_query(text)
-        if len(vector) != self._expected_dim:
-            msg = f"Expected embedding dimension {self._expected_dim}, got {len(vector)}"
-            raise ValueError(msg)
+        return fit_embedding_dimension(vector, self._expected_dim)
+
+
+def fit_embedding_dimension(vector: list[float], target_dim: int) -> list[float]:
+    """Match pgvector column size; Matryoshka-truncate when the model returns more dims."""
+    if len(vector) == target_dim:
         return vector
+    if len(vector) > target_dim:
+        return _truncate_and_normalize(vector, target_dim)
+    msg = f"Expected embedding dimension at least {target_dim}, got {len(vector)}"
+    raise ValueError(msg)
+
+
+def _truncate_and_normalize(vector: list[float], target_dim: int) -> list[float]:
+    sliced = [float(value) for value in vector[:target_dim]]
+    norm = math.sqrt(sum(value * value for value in sliced))
+    if norm == 0:
+        return sliced
+    return [value / norm for value in sliced]

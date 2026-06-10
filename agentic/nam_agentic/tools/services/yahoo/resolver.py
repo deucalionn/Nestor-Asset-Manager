@@ -64,17 +64,24 @@ class YahooIndexResolver:
             if index is not None and index.yahoo_symbol:
                 return self._from_index(index, resolved_from_db=True)
 
-            lookup_query = self._lookup_query(index=index, query=query, isin=isin)
-            if lookup_query is None:
+            lookup_queries = self._lookup_queries(index=index, query=query, isin=isin)
+            if not lookup_queries:
                 msg = "Provide index_id, isin, query, or yahoo_symbol"
                 raise YahooSymbolNotFoundError(msg)
 
-            df = await self._client.lookup(lookup_query)
-            rows = filter_by_index_type(
-                dataframe_to_lookup_rows(df),
-                index.index_type if index is not None else None,
-            )
-            hit = pick_lookup_row(rows)
+            index_type = index.index_type if index is not None else None
+            last_error: YahooSymbolNotFoundError | None = None
+            hit = None
+            for lookup_query in lookup_queries:
+                try:
+                    hit = await self._lookup_hit(lookup_query, index_type)
+                    break
+                except YahooSymbolNotFoundError as exc:
+                    last_error = exc
+
+            if hit is None:
+                assert last_error is not None
+                raise last_error
 
             if index is not None:
                 if auto_persist:
@@ -120,16 +127,33 @@ class YahooIndexResolver:
             return await session.scalar(select(Index).where(Index.isin == isin))
         return None
 
+    async def _lookup_hit(
+        self,
+        lookup_query: str,
+        index_type: IndexType | None,
+    ):
+        df = await self._client.lookup(lookup_query)
+        rows = filter_by_index_type(dataframe_to_lookup_rows(df), index_type)
+        return pick_lookup_row(rows)
+
     @staticmethod
-    def _lookup_query(
+    def _lookup_queries(
         *,
         index: Index | None,
         query: str | None,
         isin: str | None,
-    ) -> str | None:
+    ) -> list[str]:
+        queries: list[str] = []
         if index is not None:
-            return index.isin or index.name
-        return isin or query
+            if index.isin:
+                queries.append(index.isin)
+            if index.name and index.name not in queries:
+                queries.append(index.name)
+        elif isin:
+            queries.append(isin)
+        if query and query not in queries:
+            queries.append(query)
+        return queries
 
     @staticmethod
     def _from_index(index: Index, *, resolved_from_db: bool) -> ResolvedYahooIndex:

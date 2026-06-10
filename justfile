@@ -3,47 +3,49 @@
 sync:
     uv sync --all-packages
 
+# --- Docker stack: db + migrate + api + agentic (+ front with `just app`) ---
+
 up:
-    docker compose up -d --wait
+    docker compose up -d db --wait
 
 down:
-    docker compose down
+    docker compose --profile app down --remove-orphans
+
+down-v:
+    docker compose --profile app down -v --remove-orphans
+
+logs:
+    docker compose --profile app logs -f
 
 migrate:
     uv run --directory packages/db alembic upgrade head
 
-# --- Stacks: `just back` | `just front` | `just app` ---
+migrate-docker:
+    docker compose run --rm migrate
 
 back:
     #!/usr/bin/env bash
     set -euo pipefail
-    just sync
-    just up
-    just migrate
-    mkdir -p data/agent_workspace/shared
-    trap 'kill $(jobs -p) 2>/dev/null || true' EXIT INT TERM
-    echo "API → http://localhost:8000  |  Agent → http://localhost:8001"
-    uv run --directory api uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000 &
-    uv run --directory agentic uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
-    wait
-
-front:
-    cd front && pnpm dev
+    mkdir -p data/agent_workspace/shared data/agent_workspace/user
+    echo "Stack → API http://localhost:8000 | Agent http://localhost:8001"
+    echo "Ollama must run on the host (ollama serve + ollama pull gemma4)"
+    docker compose up --build --remove-orphans
 
 app:
     #!/usr/bin/env bash
     set -euo pipefail
-    just sync
-    just up
-    just migrate
-    trap 'kill $(jobs -p) 2>/dev/null || true' EXIT INT TERM
-    echo "API → http://localhost:8000  |  Agent → http://localhost:8001  |  Front → http://localhost:3000"
-    uv run --directory api uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000 &
-    uv run --directory agentic uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001 &
-    (cd front && pnpm dev) &
-    wait
+    mkdir -p data/agent_workspace/shared data/agent_workspace/user
+    echo "Stack → API http://localhost:8000 | Agent http://localhost:8001 | Front http://localhost:3000"
+    echo "Ollama must run on the host (ollama serve + ollama pull gemma4)"
+    docker compose --profile app up --build --remove-orphans
 
-# --- Single service (debug) ---
+# --- Local single service (debug without Docker) ---
+
+front:
+    cd front && pnpm dev
+
+front-local:
+    cd front && pnpm dev
 
 api:
     uv run --directory api uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000

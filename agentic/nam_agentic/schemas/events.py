@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 class EventType(StrEnum):
     USER_PROFILE_CREATED = "user.profile.created"
     USER_PROFILE_UPDATED = "user.profile.updated"
-    CHAT_MESSAGE = "chat.message"
     MARKET_SESSION = "market.session"
     NEWS_INGEST_SESSION = "news.ingest.session"
 

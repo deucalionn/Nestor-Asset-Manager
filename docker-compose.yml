@@ -1,3 +1,15 @@
+name: nam
+
+x-python-base: &python_base
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.python
+  env_file:
+    - path: .env
+      required: false
+  environment: &python_env
+    DATABASE_URL: postgresql+asyncpg://nam:nam@db:5432/nam
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -17,5 +29,85 @@ services:
       retries: 15
       start_period: 5s
 
+  migrate:
+    <<: *python_base
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run --directory packages/db alembic upgrade head
+
+  api:
+    <<: *python_base
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *python_env
+      AGENTIC_URL: http://agentic:8001
+    volumes:
+      - ./api:/app/api
+      - ./packages:/app/packages
+    command: >
+      uv run --directory api uvicorn nam_api.main:app
+      --reload --host 0.0.0.0 --port 8000
+      --reload-dir /app/api --reload-dir /app/packages
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  agentic:
+    <<: *python_base
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *python_env
+      LLM_BASE_URL: http://host.docker.internal:11434
+      AGENT_WORKSPACE_DIR: /app/data/agent_workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./agentic:/app/agentic
+      - ./packages:/app/packages
+      - ./data/agent_workspace:/app/data/agent_workspace
+    command: >
+      uv run --directory agentic uvicorn nam_agentic.main:app
+      --reload --host 0.0.0.0 --port 8001
+      --reload-dir /app/agentic --reload-dir /app/packages
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  front:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.front
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ./front:/app/front
+      - front_node_modules:/app/front/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   nam_pgdata:
+  front_node_modules:

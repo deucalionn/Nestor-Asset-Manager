@@ -39,6 +39,7 @@ class GetPortfolioPositionsOutput(BaseModel):
     user_id: UUID
     positions: list[PositionItem]
     total_market_value: Decimal | None = None
+    total_market_value_is_complete: bool = True
 
 
 class CreateIndexInput(BaseModel):

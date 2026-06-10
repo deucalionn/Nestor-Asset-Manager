@@ -1,6 +1,6 @@
 "use client";
 
-import { TransactionType } from "@/src/api/generated/nestorAssetManagerAPI.schemas";
+import { IndexType, TransactionType } from "@/src/api/generated/nestorAssetManagerAPI.schemas";
 import { useCreateIndexIndicesPost } from "@/src/api/generated/indices/indices";
 import {
   getListIndicesIndicesGetQueryKey,
@@ -32,6 +32,7 @@ export function AddHoldingModal({ open, onClose }: Props) {
   const [indexId, setIndexId] = useState("");
   const [newName, setNewName] = useState("");
   const [newIsin, setNewIsin] = useState("");
+  const [newIndexType, setNewIndexType] = useState<IndexType>(IndexType.COMPANY);
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -47,6 +48,7 @@ export function AddHoldingModal({ open, onClose }: Props) {
     setIndexId("");
     setNewName("");
     setNewIsin("");
+    setNewIndexType(IndexType.COMPANY);
     setPrice("");
     setQuantity("");
     setDate(new Date().toISOString().slice(0, 10));
@@ -76,7 +78,11 @@ export function AddHoldingModal({ open, onClose }: Props) {
           return;
         }
         const created = await createIndex.mutateAsync({
-          data: { name: newName.trim(), isin: newIsin.trim().toUpperCase() },
+          data: {
+            name: newName.trim(),
+            isin: newIsin.trim().toUpperCase(),
+            index_type: newIndexType,
+          },
         });
         if (created.status !== 201) {
           throw new Error("Impossible de créer l'indice.");
@@ -197,6 +203,17 @@ export function AddHoldingModal({ open, onClose }: Props) {
                   placeholder="FR0003500008"
                   maxLength={12}
                 />
+              </label>
+              <label className={styles.field}>
+                <span>Type</span>
+                <select
+                  className={styles.input}
+                  value={newIndexType}
+                  onChange={(e) => setNewIndexType(e.target.value as IndexType)}
+                >
+                  <option value={IndexType.COMPANY}>Action</option>
+                  <option value={IndexType.ETF}>ETF</option>
+                </select>
               </label>
             </>
           )}

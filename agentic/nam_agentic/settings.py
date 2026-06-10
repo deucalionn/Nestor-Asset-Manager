@@ -1,3 +1,5 @@
+"""Environment-backed settings for the nam-agentic process."""
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,9 +16,14 @@ class Settings(BaseSettings):
 
     llm_model: str = "ollama:gemma4"
     llm_base_url: str = "http://localhost:11434"
+    llm_num_predict: int = 2048
+    llm_num_ctx: int = 32768
+    llm_reasoning: bool = False
     embedding_model: str = "nomic-embed-text"
+    # nomic-embed-text outputs 768; we store vector(384) via Matryoshka truncation.
     embedding_dim: int = 384
     default_user_id: str = "00000000-0000-0000-0000-000000000001"
+    database_url: str = "postgresql+asyncpg://nam:nam@localhost:5432/nam"
     market_timezone: str = "Europe/Paris"
     agentic_host: str = "0.0.0.0"
     agentic_port: int = 8001
