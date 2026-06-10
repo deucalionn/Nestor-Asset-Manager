@@ -6,7 +6,7 @@ import styles from "./AppShell.module.css";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Portefeuille", enabled: true },
-  { href: "/chat", label: "Chat", enabled: false },
+  { href: "/chat", label: "Chat", enabled: true },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
