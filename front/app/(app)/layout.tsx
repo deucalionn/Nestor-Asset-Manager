@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/src/components/layout/AppShell";
+import { ChatProvider } from "@/src/components/providers/ChatProvider";
 import { useProfileGuard } from "@/src/lib/useProfileGuard";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,5 +23,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <ChatProvider>
+      <AppShell>{children}</AppShell>
+    </ChatProvider>
+  );
 }
