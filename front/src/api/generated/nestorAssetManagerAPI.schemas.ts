@@ -4,6 +4,37 @@
  * Nestor Asset Manager API
  * OpenAPI spec version: 0.1.0
  */
+export type AgentRole = typeof AgentRole[keyof typeof AgentRole];
+
+
+export const AgentRole = {
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  SECTOR_ANALYST: 'SECTOR_ANALYST',
+  MACRO_STRATEGIST: 'MACRO_STRATEGIST',
+  ETF_QUANT_SPECIALIST: 'ETF_QUANT_SPECIALIST',
+} as const;
+
+export type AnalysisTrigger = typeof AnalysisTrigger[keyof typeof AnalysisTrigger];
+
+
+export const AnalysisTrigger = {
+  MARKET_SESSION: 'MARKET_SESSION',
+  NEWS_EVENT: 'NEWS_EVENT',
+  MANUAL: 'MANUAL',
+  TASK: 'TASK',
+} as const;
+
+export interface AnalysisRead {
+  id: string;
+  user_id: string;
+  agent: AgentRole;
+  index_id: string | null;
+  title: string;
+  content: string;
+  trigger: AnalysisTrigger;
+  created_at: string;
+}
+
 export type ValidationErrorCtx = { [key: string]: unknown };
 
 export interface ValidationError {
@@ -18,6 +49,14 @@ export interface HTTPValidationError {
   detail?: ValidationError[];
 }
 
+export type IndexType = typeof IndexType[keyof typeof IndexType];
+
+
+export const IndexType = {
+  COMPANY: 'COMPANY',
+  ETF: 'ETF',
+} as const;
+
 export interface IndexCreate {
   /**
      * @minLength 1
@@ -29,12 +68,18 @@ export interface IndexCreate {
      * @maxLength 12
      */
   isin: string;
+  index_type: IndexType;
+  boursorama_ticker?: string | null;
+  yahoo_symbol?: string | null;
 }
 
 export interface IndexRead {
   id: string;
   name: string;
   isin: string;
+  index_type: IndexType;
+  boursorama_ticker: string | null;
+  yahoo_symbol: string | null;
   created_at: string;
 }
 
@@ -47,6 +92,42 @@ export interface PositionRead {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   average_cost: string;
   last_update: string;
+}
+
+export type RecommendationType = typeof RecommendationType[keyof typeof RecommendationType];
+
+
+export const RecommendationType = {
+  BUY: 'BUY',
+  HOLD: 'HOLD',
+  SELL: 'SELL',
+} as const;
+
+export type RecommendationStatus = typeof RecommendationStatus[keyof typeof RecommendationStatus];
+
+
+export const RecommendationStatus = {
+  PENDING: 'PENDING',
+  APPLIED: 'APPLIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface RecommendationRead {
+  id: string;
+  user_id: string;
+  agent: AgentRole;
+  content: string;
+  type: RecommendationType;
+  status: RecommendationStatus;
+  user_comment: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  analyses?: AnalysisRead[];
+}
+
+export interface RecommendationUpdate {
+  status: RecommendationStatus;
+  user_comment?: string | null;
 }
 
 export type Strategy = typeof Strategy[keyof typeof Strategy];
@@ -130,4 +211,12 @@ export interface UserUpdate {
 }
 
 export type HealthHealthGet200 = {[key: string]: string};
+
+export type ListAnalysesAnalysesGetParams = {
+index_id?: string | null;
+};
+
+export type ListRecommendationsRecommendationsGetParams = {
+status?: RecommendationStatus | null;
+};
 
