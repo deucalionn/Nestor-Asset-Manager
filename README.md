@@ -63,6 +63,24 @@ Open `http://localhost:3000`. `Ctrl+C` stops the stack; `just down` removes cont
 
 **Ollama** is not in Compose: agentic calls `http://host.docker.internal:11434` (macOS / Docker Desktop; Linux via `host-gateway` in compose).
 
+## Switching the LLM (Ollama)
+
+Chat and agent reasoning use whatever model you set in `.env`. Embeddings are **separate** (`EMBEDDING_MODEL`) — changing the chat model does not affect stored vectors or semantic search.
+
+```bash
+ollama pull llama3.2          # download once
+```
+
+In `.env`:
+
+```bash
+LLM_MODEL=ollama:llama3.2
+```
+
+Restart agentic so it picks up the change (`just app` again, or restart the `agentic` container). Default is `ollama:gemma4`; use the `ollama:` prefix and the exact name from `ollama list`.
+
+For “thinking” models that hide text in a reasoning field, keep `LLM_REASONING=false` so the UI receives visible tokens (see `.env.example`).
+
 ## Local development (without Docker)
 
 Useful for IDE integration, debugging a single service, or fast pytest runs:
