@@ -1,10 +1,10 @@
 # Nestor Asset Manager (NAM)
 
-J’investis en bourse, mais je n’ai pas le temps de suivre mon portefeuille et les marchés au quotidien. NAM est un assistant personnel qui s’en charge à ma place : il observe les séances (EU, US, Asie), analyse mes positions, garde une mémoire de ses analyses, et me propose des recommandations — sans jamais exécuter d’ordres à ma place. Je garde le dernier mot ; Nestor m’accompagne.
+I invest in the stock market but don't have time to track my portfolio and the markets every day. NAM is a personal assistant that does that for me: it watches market sessions (EU, US, Asia), analyzes my positions, keeps a memory of its analyses, and suggests recommendations — without ever placing orders on my behalf. I always have the final say; Nestor assists.
 
-Techniquement : monorepo **backend** (Python / uv) + **frontend** (Next.js). Stack locale via Docker Compose ; **Ollama reste sur la machine hôte**.
+Technically: **backend** monorepo (Python / uv) + **frontend** (Next.js). Local stack via Docker Compose; **Ollama stays on the host machine**.
 
-Premier usage : `just app` → `http://localhost:3000` (onboarding, portefeuille, chat).
+First run: `just app` → `http://localhost:3000` (onboarding, portfolio, chat).
 
 ### Backend (Python)
 
@@ -28,7 +28,7 @@ Browser ──HTTP/WS──► nam-api (:8000)          Ollama (:11434, host)
 
 Docker Compose: db (pgvector) + migrate + api + agentic + front
 PostgreSQL — domain tables + pgvector + LangGraph checkpoint tables
-data/agent_workspace/ — calendar partagé + USER_GOALS.md (volume monté)
+data/agent_workspace/ — shared calendar + USER_GOALS.md (mounted volume)
 ```
 
 Chat is **not** on the event bus: the front never talks to agentic directly.
@@ -39,7 +39,7 @@ Chat is **not** on the event bus: the front never talks to agentic directly.
 - [Ollama](https://ollama.com/) on the **host** — `ollama serve` + `ollama pull gemma4`
 - [just](https://github.com/casey/just) — optional shortcuts (`brew install just`)
 
-For lint/tests or debug hors Docker : Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Node ≥ 20, pnpm.
+For lint/tests or debugging outside Docker: Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Node ≥ 20, pnpm.
 
 ## Quick start
 
@@ -49,7 +49,7 @@ ollama pull gemma4          # once
 just app                    # db + migrate + api + agentic + front
 ```
 
-Open `http://localhost:3000`. `Ctrl+C` stops the stack ; `just down` removes containers.
+Open `http://localhost:3000`. `Ctrl+C` stops the stack; `just down` removes containers.
 
 | Command | What runs |
 |---------|-----------|
@@ -61,11 +61,11 @@ Open `http://localhost:3000`. `Ctrl+C` stops the stack ; `just down` removes con
 | `just test` | CI-style pytest in Docker (`nam_test`) |
 | `just lint` | ruff (local uv) |
 
-**Ollama** n’est pas dans Compose : l’agentic appelle `http://host.docker.internal:11434` (macOS / Docker Desktop ; Linux via `host-gateway` dans le compose).
+**Ollama** is not in Compose: agentic calls `http://host.docker.internal:11434` (macOS / Docker Desktop; Linux via `host-gateway` in compose).
 
 ## Local development (without Docker)
 
-Utile pour l’IDE, le debug d’un seul service, ou pytest rapide :
+Useful for IDE integration, debugging a single service, or fast pytest runs:
 
 ```bash
 uv sync --all-packages
