@@ -1,9 +1,9 @@
 # Nestor Asset Manager (NAM) — OpenSpec
 
-> **Version**: 0.2.0  
-> **Status**: Partial implementation — portfolio API + agent runtime skeleton  
+> **Version**: 0.2.1  
+> **Status**: Partial implementation — portfolio API + agent runtime + chat stream  
 > **Standard**: OpenSpec (Fission-AI) — master reference document  
-> **Last updated**: 2026-06-03
+> **Last updated**: 2026-06-10
 
 ---
 
@@ -142,7 +142,7 @@ nam/
 │       ├── routers/
 │       ├── services/              # business logic + agentic_client (HTTP events)
 │       ├── schemas/               # Pydantic HTTP request/response
-│       └── websocket/             # (future) chat proxy → nam-agentic
+│       └── websocket/             # WS /ws/chat → agentic POST /chat/stream
 │
 └── agentic/
     ├── pyproject.toml             # depends: nam-db
@@ -277,7 +277,7 @@ Agent workspace (USER_GOALS.md, etc.) — volume owned by nam-agentic, not serve
 | **Human-in-the-loop via API** | `Pending → Applied/Rejected` only through API | Agents always create recommendations as `Pending` |
 | **Deep Agents harness** | Use `create_deep_agent` + subagents, not hand-built graphs | PM delegates via built-in `task()` tool |
 | **Sibling services** | API and agentic deploy independently | Coupling via PostgreSQL + HTTP event bus (`POST /events`) |
-| **Chat is optional** | Same Deep Agent, different trigger | Future: API WebSocket proxies `chat.message` events to agentic |
+| **Chat is optional** | Same Deep Agent, different trigger | API WebSocket `/ws/chat` proxies to agentic `POST /chat/stream` |
 | **OOP modularity** | Agents and tools as classes; prompts as markdown | Testable code, editable prompts without redeploy |
 
 ### 3.3 Table access matrix
@@ -297,7 +297,7 @@ Agent workspace (USER_GOALS.md, etc.) — volume owned by nam-agentic, not serve
 |---------|---------|-------------|----------|
 | **Scheduled** | APScheduler in agentic lifespan | Cron → `market.session` event → `EventHandler` → `AgentRunner` | Autonomous market briefs/checks |
 | **Profile** | `POST /setup`, `PUT /profile` | API → HTTP `user.profile.*` event → agentic | Onboarding, goals interpretation → workspace files |
-| **Chat** | User WebSocket message (future) | API → HTTP `chat.message` event → agentic | Optional conversation |
+| **Chat** | User WebSocket message | API `/ws/chat` → agentic `POST /chat/stream` | Optional conversation |
 | **Manual** | `POST /trigger-analysis` (future) | API → HTTP event → agentic | On-demand full analysis |
 
 **Data flow (autonomous cycle)**:
@@ -314,7 +314,7 @@ Agent workspace (USER_GOALS.md, etc.) — volume owned by nam-agentic, not serve
 |------------|---------|--------|
 | `user.profile.created` | optional fields | nam-api after setup |
 | `user.profile.updated` | optional fields | nam-api after profile update |
-| `chat.message` | `thread_id`, `content` | nam-api WebSocket (future) |
+| `POST /chat/stream` | `thread_id`, `content` | nam-api WebSocket proxy |
 | `market.session` | `market`, `phase` | APScheduler |
 
 ### 3.5 Technology stack
@@ -681,7 +681,7 @@ The system MUST support cosine similarity search on `analyses.content_embedding`
 - First-run **user profile setup** (singleton — see §1.6)
 - Async REST endpoints for the Frontend
 - **HTTP notifications to nam-agentic** after profile setup/update (`POST /events` on agent runtime)
-- WebSocket chat — **future**: API proxies `chat.message` events to nam-agentic (not in-process)
+- WebSocket chat — API `/ws/chat` proxies streaming HTTP to nam-agentic `/chat/stream`
 - CRUD for `User`, `Index`, `Transaction`, `Position`
 - Read `Analysis`, manage `Recommendation` (user feedback)
 - Recalculate `Position` snapshot after each transaction
@@ -703,7 +703,7 @@ The system MUST support cosine similarity search on `analyses.content_embedding`
 | GET | `/recommendations/{id}` | Recommendation detail with linked analyses |
 | PATCH | `/recommendations/{id}` | Applied/Rejected + comment |
 | POST | `/trigger-analysis` | On-demand analysis (future) |
-| WS | `/ws/chat` | Optional chat — proxies to nam-agentic `chat.message` event (future) |
+| WS | `/ws/chat` | Chat — proxies to nam-agentic `POST /chat/stream` |
 
 ### 5.3 API Pydantic schemas (excerpts)
 
@@ -762,7 +762,7 @@ Deep Agents is LangChain's **agent harness** built on LangGraph. Instead of hand
 | Subagent delegation | `task` | PM → Sector / Macro / ETF analysts |
 | Context management | Virtual filesystem + compression | Long analysis sessions |
 | Custom tools | User-defined | Portfolio, market, DB tools |
-| Streaming | LangGraph `.stream()` | WebSocket chat via nam-agentic (future) |
+| Streaming | `AgentRunner.stream_events()` | API `WS /ws/chat` → agentic `POST /chat/stream` |
 | Runtime context | Per-invoke context propagation | `market`, `phase`, `user_id` |
 
 Reference: [Deep Agents overview](https://docs.langchain.com/oss/python/deepagents/overview)
@@ -773,7 +773,7 @@ Reference: [Deep Agents overview](https://docs.langchain.com/oss/python/deepagen
 
 - Expose **agent runtime HTTP API** (`GET /health`, `POST /events`)
 - Run **APScheduler inside FastAPI lifespan** for market session cron triggers
-- Route inbound events via `EventHandler` (stub hooks — wire to `AgentRunner` when implementing agents)
+- Route inbound events via `EventHandler` → `AgentRunner.invoke()` (market, profile lifecycle)
 - Maintain **agent workspace directory** on disk (`AGENT_WORKSPACE_DIR`)
 
 **To implement (hand-owned — agents, subagents, tools):**
@@ -1596,7 +1596,7 @@ nam/
 2. ~~`/opsx:propose database-schema`~~ — portfolio core done
 3. ~~`/opsx:propose agent-runtime-service`~~ — FastAPI skeleton + event bus + scheduler done
 4. **Deep agent implementation (hand-owned)** — wire `EventHandler` → `AgentRunner`, implement agents/subagents/tools per §8–9
-5. **Chat proxy (optional)** — API WebSocket → `chat.message` events to nam-agentic
+5. **Chat proxy** — API WebSocket `/ws/chat` → agentic `POST /chat/stream`
 
 ---
 

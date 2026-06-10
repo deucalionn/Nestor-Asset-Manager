@@ -63,19 +63,44 @@ The `nam-agentic` tool set MUST include Bourso market tools (`GetFinancialsNewsF
 - **THEN** `FetchCalendarFromBoursoTool` exists
 - **AND** LangChain-exposed name is `fetch_calendar_from_bourso`
 
-### Requirement: Deep agent factory stub
+### Requirement: Deep agent factory
 `DeepAgentFactory` MUST exist and expose a `build()` method that calls `create_deep_agent()` from the `deepagents` package.
 
-`build()` MUST pass `backend=build_agent_backend()` (see `agent-shared-backend` spec) so PM and subagents share `/shared/` on a volume-backed `FilesystemBackend`.
+`build()` MUST pass:
 
-#### Scenario: Factory builds graph with shared backend
+- `backend=build_agent_backend()` (see `agent-shared-backend` spec)
+- `checkpointer=` from application lifespan (see `agent-checkpointer` spec)
+
+The built-in Deep Agents `general-purpose` subagent MUST be disabled via harness profile (`general_purpose_subagent.enabled=False`) so the PM delegates only to NAM-defined subagents.
+
+#### Scenario: Factory builds graph with shared backend and checkpointer
 - **WHEN** `DeepAgentFactory(...).build()` is called with valid configuration
 - **THEN** a compiled LangGraph agent is returned
-- **AND** `create_deep_agent` receives a `CompositeBackend` with `/shared/` routed to `{agent_workspace_dir}/shared`
+- **AND** `create_deep_agent` receives a `CompositeBackend` with `/shared/` and `/user/` routes
+- **AND** a checkpointer is attached
 
-#### Scenario: Factory builds graph
-- **WHEN** `DeepAgentFactory(...).build()` is called with valid configuration
-- **THEN** a compiled LangGraph agent is returned (may use stub tools in this change)
+#### Scenario: General-purpose subagent disabled
+- **WHEN** the compiled agent's available subagent types are inspected
+- **THEN** `general-purpose` is not available for `task()` delegation
+- **AND** `macro-strategist`, `sector-analyst`, and `etf-quant` remain available
+
+### Requirement: Process-lifetime compiled graph
+The compiled LangGraph agent MUST be built **once** during FastAPI lifespan startup — before the app accepts traffic and before APScheduler fires.
+
+The same `AgentRunner` instance MUST serve all events and chat streams until the process exits.
+
+`create_deep_agent()` MUST NOT be called per HTTP request or per event.
+
+#### Scenario: Agent ready before scheduler
+- **WHEN** `nam-agentic` lifespan enters
+- **THEN** checkpointer setup and `DeepAgentFactory.build()` complete successfully
+- **AND** `AgentRunner` is stored on application state
+- **AND** only then does APScheduler start
+
+#### Scenario: Invoke reuses live graph
+- **WHEN** `market.session` and a subsequent `/chat/stream` request occur in the same process
+- **THEN** both use the same compiled graph instance
+- **AND** no second `create_deep_agent()` call occurs between them
 
 ### Requirement: Portfolio Manager calendar tool wiring
 `PortfolioManagerAgent.tools()` MUST include `fetch_calendar_from_bourso` from `ToolRegistry`.
@@ -88,11 +113,19 @@ No subagent class MAY include `fetch_calendar_from_bourso`.
 - **AND** Sector, Macro, and ETF subagent tool lists exclude it
 
 ### Requirement: Agent runner
-`AgentRunner` MUST wrap the compiled agent with `invoke()` and `stream()` async methods accepting `NamRuntimeContext`.
+`AgentRunner` MUST wrap the compiled agent with `invoke()`, `stream()`, and `stream_events()` async methods accepting `NamRuntimeContext`.
+
+`invoke()` and `stream()` MUST pass LangGraph `config={"configurable": {"thread_id": ...}}` when `NamRuntimeContext.thread_id` is set.
+
+For `market.session`, the runner MUST supply `thread_id` formatted as `market:{market}:{phase}:{date}` (ISO date).
 
 #### Scenario: Runner interface
 - **WHEN** `AgentRunner` is reviewed
-- **THEN** it exposes `async def invoke(message: str, context: NamRuntimeContext)` and `async def stream(...)`
+- **THEN** it exposes `invoke`, `stream`, and `stream_events` for chat UX streaming
+
+#### Scenario: Chat stream sets thread_id
+- **WHEN** `AgentRunner` is called with `context.thread_id="abc"`
+- **THEN** the LangGraph config includes `configurable.thread_id="abc"`
 
 ### Requirement: Runtime enums
 `nam_agentic/enums.py` MUST define `Market` and `MarketPhase` enums for scheduler and runtime context.

@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: FastAPI application skeleton
 The `nam-api` package MUST expose a FastAPI application at `nam_api/main.py` with an `app` instance.
@@ -27,7 +27,7 @@ api/
     ├── services/
     ├── schemas/
     └── websocket/
-        └── chat.py   (stub)
+        └── chat.py   (live WS proxy → agentic /chat/stream)
 ```
 
 #### Scenario: Module discoverability
@@ -35,11 +35,14 @@ api/
 - **THEN** all listed directories exist with `__init__.py` files
 
 ### Requirement: Package dependencies
-`nam-api` MUST declare dependencies on `nam-db` and `nam-agentic` via uv path dependency.
+`nam-api` MUST declare a dependency on `nam-db` via uv path dependency.
+
+`nam-api` MUST NOT declare a dependency on `nam-agentic` — coupling to the agent runtime is HTTP-only via `AGENTIC_URL`.
 
 #### Scenario: Dependency resolution
 - **WHEN** `uv sync` runs in the `api/` package context
-- **THEN** both `nam-db` and `nam-agentic` are installed
+- **THEN** `nam-db` is installed
+- **AND** `nam-agentic` is absent from `nam-api` dependencies
 
 ### Requirement: Async-first
 All route handlers and services MUST use `async def` — no synchronous SQLAlchemy sessions in the API layer.
@@ -55,9 +58,16 @@ HTTP request/response schemas MUST live in `nam_api/schemas/` and import enums f
 - **WHEN** an API schema needs `Strategy`
 - **THEN** it imports `Strategy` from `nam_db.enums` — never redefines it
 
-### Requirement: WebSocket chat stub
-`nam_api/websocket/chat.py` MUST exist as a stub module with a documented placeholder for future Deep Agent streaming integration.
+### Requirement: WebSocket chat proxy
+`nam_api/websocket/chat.py` MUST implement the live WebSocket chat proxy per `api-chat-proxy` spec.
 
-#### Scenario: Chat module present
-- **WHEN** `import nam_api.websocket.chat` is executed
-- **THEN** the module loads without error
+The module MUST register `/ws/chat` and proxy streaming HTTP to `{AGENTIC_URL}/chat/stream`.
+
+#### Scenario: Chat module functional
+- **WHEN** `nam_api.main` is loaded
+- **THEN** `/ws/chat` WebSocket route is registered
+- **AND** `import nam_api.websocket.chat` does not raise
+
+#### Scenario: No Python import of agentic
+- **WHEN** `nam-api` package sources are reviewed
+- **THEN** no `import nam_agentic` or `from nam_agentic` appears in `nam_api/`
