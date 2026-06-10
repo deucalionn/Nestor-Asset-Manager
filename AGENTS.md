@@ -108,12 +108,13 @@ Wiring (`DeepAgentFactory`, `AgentRunner`, checkpointer, chat proxy) is **implem
 ## Tests
 
 ```bash
-just test          # API suite in Docker
-uv run pytest agentic/agentic_tests -q
-just lint
-just back          # Postgres + migrate + api + agentic
-just app           # back + Next.js front
-just front         # front only (backend must already run)
+just app           # Docker: db + migrate + api + agentic + front (Ollama on host)
+just back          # Docker: backend only
+just test          # API + agentic tests in Docker
+just lint          # ruff (local uv)
+just api           # single service, local uv (debug)
+just agentic       # single service, local uv (debug)
+just front         # Next.js only, local pnpm (backend must run)
 ```
 
 ## Code style

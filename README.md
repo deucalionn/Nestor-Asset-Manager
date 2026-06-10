@@ -1,168 +1,101 @@
 # Nestor Asset Manager (NAM)
 
-Autonomous financial decision-support platform — **backend** (uv monorepo) + **frontend** (Next.js).
+J’investis en bourse, mais je n’ai pas le temps de suivre mon portefeuille et les marchés au quotidien. NAM est un assistant personnel qui s’en charge à ma place : il observe les séances (EU, US, Asie), analyse mes positions, garde une mémoire de ses analyses, et me propose des recommandations — sans jamais exécuter d’ordres à ma place. Je garde le dernier mot ; Nestor m’accompagne.
+
+Techniquement : monorepo **backend** (Python / uv) + **frontend** (Next.js). Stack locale via Docker Compose ; **Ollama reste sur la machine hôte**.
+
+Premier usage : `just app` → `http://localhost:3000` (onboarding, portefeuille, chat).
 
 ### Backend (Python)
 
 - **nam-db** — shared SQLAlchemy models, enums, Alembic migrations
-- **nam-agentic** — always-on agent runtime (FastAPI), Deep Agents, APScheduler market jobs
-- **nam-api** — user-facing FastAPI REST (WebSocket chat deferred)
+- **nam-agentic** — always-on agent runtime (FastAPI), Deep Agents, Postgres checkpointer, APScheduler market jobs
+- **nam-api** — user-facing FastAPI REST + WebSocket chat proxy (`/ws/chat` → agentic `/chat/stream`)
 
 ### Frontend (Node)
 
-- **front/** — Next.js + TypeScript, consumes nam-api (`NEXT_PUBLIC_API_URL`)
+- **front/** — Next.js + TypeScript, consumes nam-api only (`NEXT_PUBLIC_API_URL`)
+
+## Architecture (v1)
+
+```text
+Browser ──HTTP/WS──► nam-api (:8000)          Ollama (:11434, host)
+                        │                              ▲
+                        └── WS /ws/chat ──► agentic (:8001) ── HTTP ──► LLM
+                              │
+                              ├── POST /events (202)
+                              └── POST /chat/stream
+
+Docker Compose: db (pgvector) + migrate + api + agentic + front
+PostgreSQL — domain tables + pgvector + LangGraph checkpoint tables
+data/agent_workspace/ — calendar partagé + USER_GOALS.md (volume monté)
+```
+
+Chat is **not** on the event bus: the front never talks to agentic directly.
 
 ## Prerequisites
 
-- Python ≥ 3.12
-- [uv](https://docs.astral.sh/uv/) — **required** (backend)
-- Node.js ≥ 20 + [pnpm](https://pnpm.io/) — **required** (frontend)
-- [just](https://github.com/casey/just) — optional shortcuts (`brew install just` on macOS)
-- Docker + Docker Compose
+- [Docker](https://docs.docker.com/get-docker/) + Docker Compose v2
+- [Ollama](https://ollama.com/) on the **host** — `ollama serve` + `ollama pull gemma4`
+- [just](https://github.com/casey/just) — optional shortcuts (`brew install just`)
 
-## Setup
+For lint/tests or debug hors Docker : Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Node ≥ 20, pnpm.
 
-### Python environment (uv)
-
-`uv` creates and manages a virtual environment at `.venv/` in the repo root. You do **not** need `python -m venv` manually.
+## Quick start
 
 ```bash
-# Creates .venv (if missing) and installs all workspace packages
-uv sync --all-packages
-```
-
-Use commands through uv so they run inside `.venv`:
-
-```bash
-uv run uvicorn nam_api.main:app --reload   # see cheat sheet below for agentic, etc.
-```
-
-**IDE (Cursor / VS Code):** select the interpreter  
-`.venv/bin/python` (Command Palette → “Python: Select Interpreter”).
-
-**Optional — activate the venv in your shell:**
-
-```bash
-source .venv/bin/activate
-```
-
-### Full local setup
-
-```bash
-# 1. Install dependencies (+ create .venv)
-uv sync --all-packages
-# or: uv sync --all-packages
-
-# 2. Configure backend environment (repo root)
 cp .env.example .env
-
-# 2b. Configure frontend environment
-cp front/.env.example front/.env
-cd front && pnpm install && cd ..
-
-# 3. Start PostgreSQL (pgvector extension is auto-created on first boot)
-docker compose up -d
-
-# 4. Run migrations (once database-schema change adds tables)
-uv run --directory packages/db alembic upgrade head
-
-# 5–6. Start API + agent runtime (or: just back / just app)
-uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000
-uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001
+ollama pull gemma4          # once
+just app                    # db + migrate + api + agentic + front
 ```
 
-### Command cheat sheet (without `just`)
-
-| Task | Command |
-|------|---------|
-| Sync deps | `uv sync --all-packages` |
-| Start DB | `docker compose up -d` |
-| Stop DB | `docker compose down` |
-| Migrations | `uv run --directory packages/db alembic upgrade head` |
-| Tests (API, all) | `just test` |
-| API | `uv run uvicorn nam_api.main:app --reload --host 0.0.0.0 --port 8000` |
-| Agent runtime | `uv run uvicorn nam_agentic.main:app --reload --host 0.0.0.0 --port 8001` |
-| Frontend | `cd front && pnpm dev` |
-| Lint (Python) | `uv run ruff check .` |
-
-With [just](https://github.com/casey/just) installed:
+Open `http://localhost:3000`. `Ctrl+C` stops the stack ; `just down` removes containers.
 
 | Command | What runs |
 |---------|-----------|
-| `just back` | DB + migrate + API + agentic |
-| `just app` | back + Next.js (`:3000`) |
-| `just front` | Next.js only (backend must already run) |
-| `just api` / `just agentic` | single service |
+| `just app` | Full stack in Docker (with hot-reload on bind mounts) |
+| `just back` | db + api + agentic only (no front) |
+| `just down` | Stop and remove containers |
+| `just down-v` | Same + delete Postgres volume |
+| `just logs` | Follow compose logs |
+| `just test` | CI-style pytest in Docker (`nam_test`) |
+| `just lint` | ruff (local uv) |
 
-**Backend only:** `just back` — `Ctrl+C` stops API and agent; DB stays up (`just down` to stop it).
+**Ollama** n’est pas dans Compose : l’agentic appelle `http://host.docker.internal:11434` (macOS / Docker Desktop ; Linux via `host-gateway` dans le compose).
 
-**Full stack:** `just app` — same + frontend. Requires `cd front && pnpm install` once.
+## Local development (without Docker)
 
-Verify: `curl http://localhost:8000/health` and `curl http://localhost:8001/health`
-
-First-run setup (once):
+Utile pour l’IDE, le debug d’un seul service, ou pytest rapide :
 
 ```bash
-curl -X POST http://localhost:8000/setup \
-  -H 'Content-Type: application/json' \
-  -d '{"firstname":"Lucas","date_of_birth":"1990-01-15","strategy":"BALANCED","goals":"Retire early"}'
+uv sync --all-packages
+cp .env.example .env
+just up && just migrate    # Postgres only in Docker
+just api                   # or just agentic / just front
 ```
-
-Then portfolio routes work without `user_id` in the URL: `/transactions`, `/positions`. The agent uses `DEFAULT_USER_ID` from `.env` — set it to match the profile `id` returned by `/setup` if you want a stable UUID.
 
 ## pgvector
 
-The `vector` extension is created automatically when PostgreSQL starts for the first time via `docker/postgres/init.sql`. No manual `CREATE EXTENSION` step is required.
+The `vector` extension is created automatically when PostgreSQL starts for the first time via `docker/postgres/init.sql`. Embeddings use Ollama (`nomic-embed-text`), stored as `vector(384)`.
 
 ## Package layout
 
 ```text
-packages/db/   → nam_db (shared kernel)
-api/           → nam_api (user REST API)
-agentic/       → nam_agentic (FastAPI agent runtime + Deep Agents)
-front/         → Next.js UI (API consumer)
+packages/db/   → nam_db
+api/           → nam_api
+agentic/       → nam_agentic
+front/         → Next.js UI
+docker/        → Dockerfiles (python, front)
 ```
 
-**Backend:** `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (siblings; API notifies agentic via HTTP).  
-**Frontend:** `front/` → HTTP → `nam-api` only.
-
-## Alembic
-
-Migrations live in `packages/db/alembic/`. Run from the repo root:
-
-```bash
-uv run --directory packages/db alembic upgrade head
-# or: uv run --directory packages/db alembic upgrade head
-```
-
-Alembic uses the async template and reads `DATABASE_URL` from `nam_db.settings`.
+**Backend:** `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (HTTP siblings).  
+**Frontend:** `front/` → HTTP/WS → `nam-api` only.
 
 ## Tests
 
-All API tests (unit + services + routes) run in Docker against PostgreSQL (pgvector):
-
 ```bash
-just test        # alembic upgrade head + pytest api/tests
-just test-down   # tear down test containers and volumes
+just test        # migrate + pytest api/tests agentic/agentic_tests
+just test-down
 ```
 
-One command — no separate local pytest for portfolio tests.
-
-The test-runner applies Alembic migrations once, then each test truncates portfolio tables (schema stays, data is reset).
-
-## Development
-
-```bash
-just lint    # or: uv run ruff check .
-just down    # or: docker compose down
-```
-
-## Roadmap
-
-1. `monorepo-architecture` — skeleton ✓
-2. `api-portfolio-core` — portfolio CRUD + Docker tests ✓
-3. `agent-runtime-service` — agentic FastAPI + event bus + scheduler ✓
-4. **Deep agent (hand-owned)** — wire `EventHandler` → `AgentRunner`, implement agents/subagents/tools
-5. **Chat proxy** — API WebSocket `/ws/chat` → agentic `POST /chat/stream`
-
-See `openspec.md` for the full specification.
+Agent conventions: `AGENTS.md`. Full specification: `openspec.md`.
