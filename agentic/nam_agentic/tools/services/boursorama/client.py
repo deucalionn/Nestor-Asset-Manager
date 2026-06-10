@@ -122,8 +122,9 @@ class BoursoramaHttpClient:
                 final_host = urlparse(str(response.url)).netloc.lower()
                 if final_host not in ALLOWED_HOSTS:
                     raise BoursoramaUrlError(f"Redirect landed on disallowed host: {final_host}")
-
-            response.raise_for_status()
+                response.raise_for_status()
+            elif response.status_code >= 400:
+                response.raise_for_status()
             return response
 
     async def get(self, url: str, *, referer: str | None = None) -> str:

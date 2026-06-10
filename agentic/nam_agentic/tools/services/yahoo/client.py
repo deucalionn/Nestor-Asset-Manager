@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
-from yfinance import Lookup, Search, Ticker
+from yfinance import Lookup, Ticker
 
 from nam_agentic.settings import settings
 from nam_agentic.tools.services.yahoo.errors import YahooDataUnavailableError
@@ -120,6 +120,5 @@ class YfinanceClient:
         return frame
 
     def _get_news_sync(self, symbol: str, count: int) -> list[dict[str, Any]]:
-        search = Search(symbol)
-        news = search.news or []
+        news = Ticker(symbol).news or []
         return news[:count]

@@ -134,10 +134,43 @@ class UpdateIndexBoursoramaOutput(BaseModel):
     boursorama_ticker: str
 
 
+_IDENTITY_PLACEHOLDERS = frozenset({"n/a", "na", "none", "null", "unknown", "-"})
+
+
+def _clean_optional_identity(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return str(value)
+    stripped = value.strip()
+    if not stripped or stripped.lower() in _IDENTITY_PLACEHOLDERS:
+        return None
+    return stripped
+
+
 class YahooIdentityInput(BaseModel):
     index_id: UUID | None = None
     isin: str | None = None
     yahoo_symbol: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_identity_fields(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        for field in ("isin", "yahoo_symbol"):
+            if field in normalized:
+                normalized[field] = _clean_optional_identity(normalized.get(field))
+
+        priority = ("yahoo_symbol", "index_id", "isin")
+        present = [name for name in priority if normalized.get(name) is not None]
+        if len(present) > 1:
+            keep = present[0]
+            for name in priority:
+                if name != keep:
+                    normalized[name] = None
+        return normalized
 
     @model_validator(mode="after")
     def exactly_one_key(self) -> "YahooIdentityInput":

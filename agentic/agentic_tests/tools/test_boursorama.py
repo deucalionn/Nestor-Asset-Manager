@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from nam_agentic.tools.market.get_etf_composition import GetEtfCompositionTool
 from nam_agentic.tools.services.boursorama.client import BoursoramaHttpClient
@@ -10,6 +11,7 @@ from nam_agentic.tools.services.boursorama.etf_composition_parser import parse_e
 from nam_agentic.tools.services.boursorama.list_parser import parse_list_page
 from nam_agentic.tools.services.boursorama.page_formatter import PageContentFormatter
 from nam_agentic.tools.services.boursorama.resolver import BoursoramaIndexResolver
+from nam_agentic.tools.services.boursorama.search import search_boursorama
 from nam_agentic.tools.services.boursorama.urls import build_type_aware_urls
 from nam_db.enums import IndexType, NewsCategory, NewsSource
 from nam_db.models.index import Index
@@ -55,6 +57,38 @@ async def test_etf_composition_parser_fixture() -> None:
     assert len(rows) == 3
     assert rows[0].weight_pct == 9.0
     assert rows[2].boursorama_ticker == "1rPMSFT"
+
+
+async def test_http_client_get_redirect_location_accepts_302(monkeypatch) -> None:
+    BoursoramaHttpClient.reset_singleton()
+    client = BoursoramaHttpClient()
+    monkeypatch.setattr("asyncio.sleep", AsyncMock())
+
+    async def fake_get(url: str, **kwargs: object) -> httpx.Response:
+        assert kwargs.get("follow_redirects") is False
+        return httpx.Response(
+            302,
+            headers={"location": "/cours/1rPSTLAP/"},
+            request=httpx.Request("GET", url),
+        )
+
+    client._client.get = fake_get  # noqa: SLF001
+
+    location = await client.get_redirect_location(
+        "https://www.boursorama.com/recherche/?query=Stellantis"
+    )
+    assert location == "/cours/1rPSTLAP/"
+
+
+async def test_search_boursorama_resolves_stellantis_redirect() -> None:
+    client = AsyncMock(spec=BoursoramaHttpClient)
+    client.get_redirect_location.return_value = "/cours/1rPSTLAP/"
+
+    hit = await search_boursorama(client, query="Stellantis")
+
+    assert hit.ticker == "1rPSTLAP"
+    assert hit.is_company is True
+    client.get.assert_not_called()
 
 
 async def test_http_client_rate_limit() -> None:

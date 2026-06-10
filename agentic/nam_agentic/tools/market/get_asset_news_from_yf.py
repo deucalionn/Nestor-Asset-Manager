@@ -4,7 +4,10 @@ from langchain_core.tools import BaseTool, tool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.tools.base import BaseNamTool
-from nam_agentic.tools.market.yahoo_helpers import news_timestamp
+from nam_agentic.tools.market.yahoo_helpers import (
+    filter_news_by_company_name,
+    normalize_yahoo_news_items,
+)
 from nam_agentic.tools.schemas.market import (
     GetAssetNewsFromYfInput,
     GetAssetNewsFromYfOutput,
@@ -40,6 +43,7 @@ class GetAssetNewsFromYfTool(BaseNamTool):
             Use when: you need fresh headlines for a specific symbol from Yahoo.
             Do not use when: you need Bourso macro headlines from SQL cache —
             use get_financials_news_from_bourso instead.
+            Pass exactly ONE of index_id, isin (from get_index), or yahoo_symbol — not several.
             Returns: list of Yahoo headlines (title, link, publisher, published_at).
             """
             resolved = await resolver.resolve(
@@ -47,16 +51,14 @@ class GetAssetNewsFromYfTool(BaseNamTool):
                 isin=isin,
                 yahoo_symbol=yahoo_symbol,
             )
-            raw_items = await client.get_news(resolved.yahoo_symbol, count=limit)
-            items = [
-                YahooNewsItem(
-                    title=str(item.get("title") or ""),
-                    link=str(item.get("link") or ""),
-                    publisher=str(item.get("publisher")) if item.get("publisher") else None,
-                    published_at=news_timestamp(item.get("providerPublishTime")),
-                )
-                for item in raw_items
-            ]
+            raw_items = await client.get_news(resolved.yahoo_symbol, count=min(limit * 3, 25))
+            normalized = normalize_yahoo_news_items(raw_items, limit=min(limit * 3, 25))
+            filtered = filter_news_by_company_name(
+                normalized,
+                company_name=resolved.name,
+                limit=limit,
+            )
+            items = [YahooNewsItem.model_validate(row) for row in filtered]
             return GetAssetNewsFromYfOutput(
                 yahoo_symbol=resolved.yahoo_symbol,
                 items=items,

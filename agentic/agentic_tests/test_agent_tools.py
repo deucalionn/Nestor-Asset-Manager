@@ -36,6 +36,10 @@ async def test_portfolio_manager_tools(
         "create_index",
         "create_recommendation",
         "fetch_calendar_from_bourso",
+        "get_financials_news_from_bourso",
+        "get_asset_news_from_yf",
+        "search_boursorama",
+        "get_data_from_url",
     }
 
 

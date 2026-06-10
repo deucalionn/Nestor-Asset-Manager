@@ -8,6 +8,8 @@ from nam_agentic.tools.market.get_company_financials_from_yf import GetCompanyFi
 from nam_agentic.tools.services.market_price import YfinanceMarketPriceProvider
 from nam_agentic.tools.services.yahoo.client import YfinanceClient
 from nam_agentic.tools.services.yahoo.errors import YahooSymbolNotFoundError
+from nam_agentic.tools.market.yahoo_helpers import normalize_yahoo_news_item, normalize_yahoo_news_items
+from nam_agentic.tools.schemas.market import GetAssetNewsFromYfInput
 from nam_agentic.tools.services.yahoo.lookup import dataframe_to_lookup_rows, pick_lookup_row
 from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
 from nam_db.enums import IndexType
@@ -89,6 +91,69 @@ async def test_yahoo_resolver_auto_persist(
     assert row.yahoo_symbol == "AI.PA"
 
 
+def test_filter_news_by_company_name_drops_generic_titles() -> None:
+    from nam_agentic.tools.market.yahoo_helpers import filter_news_by_company_name
+
+    items = [
+        {"title": "Bolt, Pony.ai and Stellantis launch AV pilot", "link": "a"},
+        {"title": "2 Cheap Stocks to Buy Now", "link": "b"},
+        {"title": "Stellantis recalls vehicles in the US", "link": "c"},
+    ]
+    filtered = filter_news_by_company_name(items, company_name="STELLANTIS", limit=5)
+    titles = [item["title"] for item in filtered]
+    assert "2 Cheap Stocks to Buy Now" not in titles
+    assert any("Stellantis" in title for title in titles)
+
+
+def test_yahoo_identity_input_strips_na_and_keeps_symbol() -> None:
+    parsed = GetAssetNewsFromYfInput(isin="N/A", yahoo_symbol="STLA", limit=5)
+    assert parsed.yahoo_symbol == "STLA"
+    assert parsed.isin is None
+    assert parsed.limit == 5
+
+
+def test_normalize_yahoo_news_item_nested_content() -> None:
+    item = {
+        "id": "abc",
+        "content": {
+            "title": "Bolt, Pony.ai and Stellantis launch AV pilot in Luxembourg",
+            "pubDate": "2026-06-10T10:14:54Z",
+            "provider": {"displayName": "Just Auto"},
+            "clickThroughUrl": {
+                "url": "https://finance.yahoo.com/sectors/technology/articles/stellantis.html",
+            },
+        },
+    }
+    row = normalize_yahoo_news_item(item)
+    assert row is not None
+    assert "Stellantis" in row["title"]
+    assert row["publisher"] == "Just Auto"
+    assert row["link"].endswith("stellantis.html")
+
+
+def test_normalize_yahoo_news_item_legacy_flat() -> None:
+    row = normalize_yahoo_news_item(
+        {
+            "title": "Stellantis Recalls Vehicles",
+            "link": "https://finance.yahoo.com/news/stellantis.html",
+            "publisher": "Reuters",
+            "providerPublishTime": 1_700_000_000,
+        }
+    )
+    assert row is not None
+    assert row["title"] == "Stellantis Recalls Vehicles"
+    assert row["publisher"] == "Reuters"
+
+
+def test_normalize_yahoo_news_items_caps_limit() -> None:
+    items = [
+        {"title": f"Headline {i}", "link": f"https://example.com/{i}"}
+        for i in range(5)
+    ]
+    rows = normalize_yahoo_news_items(items, limit=2)
+    assert len(rows) == 2
+
+
 async def test_pick_lookup_row_prefers_pa_suffix() -> None:
     rows = dataframe_to_lookup_rows(_lookup_df())
     hit = pick_lookup_row(rows, prefer_suffix=".PA")
@@ -106,6 +171,49 @@ async def test_pick_lookup_row_ambiguous_raises() -> None:
     rows = dataframe_to_lookup_rows(df)
     with pytest.raises(YahooSymbolNotFoundError, match="Ambiguous"):
         pick_lookup_row(rows, prefer_suffix=".PA")
+
+
+async def test_pick_lookup_row_prefers_milan_over_isin_style_ticker() -> None:
+    df = pd.DataFrame(
+        [
+            {"exchange": "MIL", "quoteType": "equity", "shortName": "STELLANTIS"},
+            {"exchange": "STU", "quoteType": "equity", "shortName": "Stellantis N.V."},
+        ],
+        index=["STLAM.MI", "NL00150001Q9.SG"],
+    )
+    rows = dataframe_to_lookup_rows(df)
+    hit = pick_lookup_row(rows, prefer_suffix=".PA")
+    assert hit.yahoo_symbol == "STLAM.MI"
+
+
+async def test_yahoo_resolver_stellantis_isin_lookup(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as session:
+        index = Index(
+            name="STELLANTIS",
+            isin="NL00150001Q9",
+            index_type=IndexType.COMPANY,
+        )
+        session.add(index)
+        await session.commit()
+        await session.refresh(index)
+        index_id = index.id
+
+    stellantis_df = pd.DataFrame(
+        [
+            {"exchange": "MIL", "quoteType": "equity", "shortName": "STELLANTIS"},
+            {"exchange": "STU", "quoteType": "equity", "shortName": "Stellantis N.V."},
+        ],
+        index=["STLAM.MI", "NL00150001Q9.SG"],
+    )
+    client = AsyncMock(spec=YfinanceClient)
+    client.lookup.return_value = stellantis_df
+    resolver = YahooIndexResolver(session_factory, client=client)
+    resolved = await resolver.resolve(index_id=index_id)
+
+    assert resolved.yahoo_symbol == "STLAM.MI"
+    client.lookup.assert_awaited_once_with("NL00150001Q9")
 
 
 async def test_yfinance_client_uses_to_thread() -> None:

@@ -35,11 +35,13 @@ class GetPortfolioPositionsTool(BaseNamTool):
 
         @tool(args_schema=EmptyToolInput)
         async def get_portfolio_positions() -> GetPortfolioPositionsOutput:
-            """List portfolio positions with optional gain/loss percentage.
+            """List portfolio positions with gain/loss and EUR market values.
 
-            Use when: sector/ETF analysis needs holdings with index_type and ticker caches.
+            Use when: user asks about holdings, allocation, or portfolio value.
             Do not use when: you only need macro context without portfolio lines.
-            Returns: positions with quantities, PnL, index_type, and ticker caches.
+            Returns: positions in EUR; `total_market_value` sums priced lines (partial if
+            some prices missing); `total_market_value_is_complete` is false when any
+            live price is unavailable.
             """
             async with session_factory() as session:
                 stmt = (
@@ -51,8 +53,9 @@ class GetPortfolioPositionsTool(BaseNamTool):
                 positions = list((await session.scalars(stmt)).all())
 
             items: list[PositionItem] = []
-            all_prices_available = bool(positions)
             total_market_value = Decimal("0")
+            priced_count = 0
+            missing_price_count = 0
 
             for position in positions:
                 index: Index = position.index
@@ -69,8 +72,9 @@ class GetPortfolioPositionsTool(BaseNamTool):
                             (current_price - position.average_cost) / position.average_cost * 100
                         )
                     total_market_value += market_value
+                    priced_count += 1
                 else:
-                    all_prices_available = False
+                    missing_price_count += 1
 
                 items.append(
                     PositionItem(
@@ -90,10 +94,21 @@ class GetPortfolioPositionsTool(BaseNamTool):
                     )
                 )
 
+            if not positions:
+                total: Decimal | None = None
+                is_complete = True
+            elif priced_count == 0:
+                total = None
+                is_complete = False
+            else:
+                total = total_market_value
+                is_complete = missing_price_count == 0
+
             return GetPortfolioPositionsOutput(
                 user_id=user_id,
                 positions=items,
-                total_market_value=total_market_value if all_prices_available else None,
+                total_market_value=total,
+                total_market_value_is_complete=is_complete,
             )
 
         return get_portfolio_positions
