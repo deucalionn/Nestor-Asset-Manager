@@ -1,3 +1,5 @@
+"""Inbound event bus — profile lifecycle, market cron, and news ingest."""
+
 import logging
 from datetime import date
 from pathlib import Path

@@ -1,3 +1,5 @@
+"""FastAPI entrypoint for nam-agentic — lifespan, scheduler, and HTTP routes."""
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -25,6 +27,7 @@ def _wire_runtime(app: FastAPI, agent_runner, event_handler) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Open Postgres checkpointer, bootstrap agent runtime, start market scheduler."""
     logging.basicConfig(level=logging.INFO)
     conn_string = to_psycopg_conn_string(settings.database_url)
     async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:

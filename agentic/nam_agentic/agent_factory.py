@@ -1,3 +1,5 @@
+"""Compose PM + expert subagents into a ``DeepAgentFactory``."""
+
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from nam_agentic.agents.etf_quant import EtfQuantSpecialistAgent
@@ -14,6 +16,7 @@ def build_deep_agent_factory(
     *,
     checkpointer: BaseCheckpointSaver | None = None,
 ) -> DeepAgentFactory:
+    """Build the NAM agent factory with PM, experts, and optional Postgres checkpointer."""
     portfolio_manager = PortfolioManagerAgent(registry)
     subagents = [
         SectorAnalystAgent(registry),

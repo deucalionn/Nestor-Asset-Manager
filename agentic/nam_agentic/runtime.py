@@ -1,3 +1,9 @@
+"""Process-wide holder for the compiled agent graph and event router.
+
+Set once in ``main.lifespan`` via ``set_runtime``; read from routers and
+``dependencies`` while the FastAPI app is running.
+"""
+
 from dataclasses import dataclass
 
 from nam_agentic.runner import AgentRunner
@@ -6,6 +12,8 @@ from nam_agentic.services.event_handler import EventHandler
 
 @dataclass
 class AgentRuntime:
+    """Live ``AgentRunner`` and ``EventHandler`` for the current process."""
+
     agent_runner: AgentRunner
     event_handler: EventHandler
 

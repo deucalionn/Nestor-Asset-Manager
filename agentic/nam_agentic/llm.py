@@ -1,3 +1,5 @@
+"""Shared Ollama chat model factory for PM and subagents."""
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_ollama import ChatOllama
 

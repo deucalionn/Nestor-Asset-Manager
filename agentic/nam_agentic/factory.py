@@ -1,3 +1,5 @@
+"""Deep Agent graph assembly and NAM-specific harness configuration."""
+
 from typing import Any
 
 from deepagents import (
@@ -22,6 +24,7 @@ _harness_configured = False
 
 
 def configure_nam_harness_profile() -> None:
+    """Register the NAM harness profile once (disables built-in general-purpose subagent)."""
     global _harness_configured
     if _harness_configured:
         return

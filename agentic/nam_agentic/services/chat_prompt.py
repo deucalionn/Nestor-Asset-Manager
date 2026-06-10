@@ -1,3 +1,5 @@
+"""Prompt wrappers that put the PM in chat mode vs market-cycle workflow."""
+
 def build_chat_message(user_content: str) -> str:
     """Wrap a user chat turn with instructions that override the market-cycle workflow."""
     return (

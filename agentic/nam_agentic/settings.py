@@ -1,3 +1,5 @@
+"""Environment-backed settings for the nam-agentic process."""
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

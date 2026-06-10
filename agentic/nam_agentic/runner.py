@@ -1,3 +1,5 @@
+"""Invoke and stream the compiled Deep Agent for chat and scheduled events."""
+
 import logging
 import re
 import time

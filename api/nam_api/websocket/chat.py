@@ -1,3 +1,5 @@
+"""WebSocket chat proxy — front connects here; streams to nam-agentic ``/chat/stream``."""
+
 import json
 import logging
 

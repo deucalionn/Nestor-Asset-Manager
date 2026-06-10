@@ -1,3 +1,5 @@
+"""NDJSON streaming chat endpoint consumed by the nam-api WebSocket proxy."""
+
 import logging
 from collections.abc import AsyncIterator
 from uuid import UUID, uuid4
