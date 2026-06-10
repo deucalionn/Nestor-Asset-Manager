@@ -5,16 +5,17 @@
 ## Project shape
 
 ```text
-packages/db/   nam-db     — SQLAlchemy models, Alembic (single migration history)
-api/           nam-api    — user-facing REST (:8000)
-agentic/       nam-agentic — always-on agent runtime (:8001)
-front/         Next.js UI (:3000) — API consumer only
+packages/db/    nam-db      — SQLAlchemy models, Alembic (single migration history)
+packages/yahoo/ nam-yahoo   — Yahoo Finance client, resolver, market pricing
+api/            nam-api     — user-facing REST (:8000)
+agentic/        nam-agentic — always-on agent runtime (:8001)
+front/          Next.js UI (:3000) — API consumer only
 ```
 
-**Backend** (Python / uv): `packages/db`, `api/`, `agentic/` — env at repo root (`.env`).  
+**Backend** (Python / uv): `packages/db`, `packages/yahoo`, `api/`, `agentic/` — env at repo root (`.env`).  
 **Frontend** (Node / pnpm): `front/` — env in `front/.env` (see `front/.env.example`).
 
-**Dependency graph:** `nam-db` ← `nam-api` and `nam-db` ← `nam-agentic` (siblings).  
+**Dependency graph:** `nam-db` ← `nam-yahoo` ← `nam-api` and `nam-db` ← `nam-yahoo` ← `nam-agentic` (siblings).  
 **Coupling:** PostgreSQL (shared) + HTTP event bus (`POST /events` on agentic).  
 **No Python import** from `nam-api` → `nam-agentic`. Front talks to `nam-api` over HTTP only.
 
@@ -47,6 +48,7 @@ Other types (`test`, `chore`, `build`) are OK when they fit better.
 | `agent` | `agentic/nam_agentic/` |
 | `front` | `front/` (Next.js) |
 | `db` | `packages/db/` |
+| `yahoo` | `packages/yahoo/` |
 | `openspec` | `openspec.md`, `openspec/` |
 | `infra` | `justfile`, `docker/`, root `pyproject.toml`, `.env.example` |
 
@@ -77,12 +79,14 @@ test(api): add position calculator unit tests
 - Portfolio: `/indices`, `/transactions`, `/positions`
 - After setup/profile update → fire-and-forget `POST {AGENTIC_URL}/events`
 - Chat: `WS /ws/chat` → HTTP stream proxy to agentic `POST /chat/stream`
+- Chat threads (metadata): `GET/POST /chat/threads`, `PATCH/DELETE /chat/threads/{id}`, `GET /chat/threads/{id}/messages` (history proxied to agentic)
 - No auth in v1
 
 ### nam-agentic (:8001)
 
 - `GET /health`, `POST /events` (202, async via BackgroundTasks)
-- `POST /chat/stream` — NDJSON chat stream (tokens, status, done, error)
+- `POST /chat/stream` — NDJSON chat stream (tokens, status, done, error); every event carries `thread_id`
+- `GET /chat/threads/{thread_id}/messages` — checkpoint history for a LangGraph thread
 - APScheduler in FastAPI **lifespan** — market cron EU/US/ASIA
 - Compiled Deep Agent built **once** at startup (Postgres checkpointer by default)
 - `EventHandler` routes events → `AgentRunner.invoke()` for market + profile lifecycle
@@ -93,17 +97,20 @@ Event types (`agentic/nam_agentic/schemas/events.py`):
 - `market.session` (cron)
 - `news.ingest.session` (cron, no agent invoke)
 
-Chat is **not** on the event bus — front → API WebSocket → agentic `/chat/stream`.
+Chat is **not** on the event bus — front → API WebSocket → agentic `/chat/stream`.  
+One **conversation = one LangGraph `thread_id`**; sidebar lists thread metadata from API (`chat_threads` table). Message bodies live in the Postgres checkpointer.
 
 ### Hand-owned (human implements)
 
 Do **not** auto-implement unless explicitly asked:
 
 - Subagent classes (`agents/`), tools (`tools/`), prompts content
-- Prompt prose in `prompts/` (CHAT.md, PORTFOLIO.md, etc.)
+- Prompt prose in `prompts/` (`PORTFOLIO.md`, subagent `.md` files)
 - Tuning agent behaviour (committee flow, recommendation policy)
 
-Wiring (`DeepAgentFactory`, `AgentRunner`, checkpointer, chat proxy) is **implemented** — extend via `event_handler.py` seeds and agent/tool classes.
+Wiring (`DeepAgentFactory`, `AgentRunner`, checkpointer, chat proxy, chat threads REST) is **implemented** — extend via `event_handler.py` seeds and agent/tool classes.
+
+**Chat vs cron:** same Portfolio Manager agent and `PORTFOLIO.md`. Chat passes the raw user message; scheduled events pass a seed message. No separate `CHAT.md` prompt.
 
 ## Tests
 
@@ -129,4 +136,4 @@ just front         # Next.js only, local pnpm (backend must run)
 - Master reference: `openspec.md`
 - Active/completed changes: `openspec/changes/<name>/`
 - Completed: `api-portfolio-core`, `agent-runtime-service`, …
-- In progress: `agent-runtime-wiring` (chat stream, checkpointer, profile invoke)
+- In progress: `chat-v2-conversations` (multi-thread chat, single PM prompt, sidebar)

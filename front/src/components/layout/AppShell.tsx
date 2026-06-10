@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useChat } from "@/src/components/providers/ChatProvider";
 import styles from "./AppShell.module.css";
 
 const NAV_ITEMS = [
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { isStreaming } = useChat();
 
   return (
     <div className={styles.shell}>
@@ -31,7 +33,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : styles.navLink
                 }
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.href === "/chat" && isStreaming ? (
+                  <span className={styles.streamingBadge} title="Réponse en cours">
+                    …
+                  </span>
+                ) : null}
               </Link>
             ) : (
               <span

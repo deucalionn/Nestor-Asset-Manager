@@ -15,7 +15,11 @@ class MacroStrategistAgent(BaseSubAgent):
 
     @property
     def description(self) -> str:
-        return "Analyzes macroeconomic trends, rates, and geopolitical risk."
+        return (
+            "Macro and market headlines: rates, geopolitics, broad indices, session recap. "
+            "Uses get_financials_news_from_bourso, Yahoo news/prices. "
+            "Use for 'what's new on markets' — not single-stock fundamentals."
+        )
 
     @property
     def prompt_file(self) -> str:

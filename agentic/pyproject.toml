@@ -5,6 +5,7 @@ description = "NAM agent runtime — FastAPI service, Deep Agents, market schedu
 requires-python = ">=3.12"
 dependencies = [
     "nam-db",
+    "nam-yahoo",
     "deepagents>=0.6",
     "langchain-ollama>=0.3",
     "apscheduler>=3.10",
@@ -14,7 +15,6 @@ dependencies = [
     "httpx>=0.28",
     "trafilatura>=2.0",
     "selectolax>=0.3",
-    "yfinance>=1.4.1",
     "langgraph-checkpoint-postgres>=3.1.0",
     "psycopg[binary]>=3.3.4",
 ]
@@ -36,3 +36,4 @@ artifacts = ["nam_agentic/prompts/*.md"]
 
 [tool.uv.sources]
 nam-db = { workspace = true }
+nam-yahoo = { workspace = true }

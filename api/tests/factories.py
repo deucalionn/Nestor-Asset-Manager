@@ -49,8 +49,9 @@ class IndexFactory:
         *,
         name: str = "CAC 40",
         isin: str = "FR0003500008",
+        yahoo_symbol: str | None = None,
     ) -> Index:
-        index = Index(name=name, isin=isin)
+        index = Index(name=name, isin=isin, yahoo_symbol=yahoo_symbol)
         session.add(index)
         await session.flush()
         return index

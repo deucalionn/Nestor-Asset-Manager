@@ -1,22 +1,30 @@
 """Invoke and stream the compiled Deep Agent for chat and scheduled events."""
 
 import logging
-import re
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 from nam_agentic.context import NamRuntimeContext
 from nam_agentic.factory import CompiledDeepAgent, DeepAgentFactory
 from nam_agentic.schemas.chat import ChatStreamEvent
-from nam_agentic.services.chat_prompt import build_synthesis_nudge
+from nam_agentic.services.chat_messages import (
+    MIN_POST_TASK_SYNTHESIS_CHARS,
+    find_turn_start_index,
+    find_unsynthesized_task_index,
+    pick_turn_assistant_text,
+    sanitize_user_text,
+    task_tool_result_chars,
+    text_claims_missing_market_data_access,
+    text_claims_async_subagent_wait,
+)
+from nam_agentic.services.chat_prompt import build_delegation_nudge, build_synthesis_nudge
 
 logger = logging.getLogger(__name__)
 
-# Libellés affichés dans l'UI pendant l'exécution des outils.
 LIBELLES_STATUT_OUTILS: dict[str, str] = {
     "get_portfolio_positions": "Consultation de votre portefeuille",
     "get_user_context": "Lecture de votre profil",
@@ -25,6 +33,9 @@ LIBELLES_STATUT_OUTILS: dict[str, str] = {
     "search_boursorama": "Recherche sur Boursorama",
     "get_financials_news_from_bourso": "Actualités Boursorama (cache)",
     "get_asset_news_from_yf": "Actualités Yahoo Finance",
+    "search_yahoo_symbol": "Recherche symbole Yahoo",
+    "get_asset_price_from_yf": "Cours Yahoo Finance",
+    "get_company_financials_from_yf": "Comptes et ratios Yahoo Finance",
     "get_data_from_url": "Lecture d'articles Boursorama",
     "search_past_analyses": "Recherche dans l'historique d'analyses",
     "fetch_calendar_from_bourso": "Calendrier marché",
@@ -45,12 +56,20 @@ LIBELLES_STATUT_EXPERTS: dict[str, str] = {
 }
 
 REPONSE_VIDE_SECOURS = (
-    "Je n'ai pas pu finaliser la synthèse après les analyses. "
-    "Reformulez une question précise (ex. « que faire des 300 € de liquide ? »)."
+    "Je n'ai pas pu produire de réponse finale. Reformulez votre question de façon précise."
 )
 
 CHAT_RECURSION_LIMIT = 50
 CHAT_HEARTBEAT_SEC = 12
+# Deep Agents streaming: https://docs.langchain.com/oss/python/deepagents/streaming
+MODEL_UPDATE_NODES = frozenset({"model", "model_request"})
+
+
+@dataclass
+class _ActiveSubagent:
+    subagent_type: str
+    description: str
+    status: str = "pending"  # pending | running | complete
 
 
 @dataclass
@@ -58,6 +77,11 @@ class _StreamState:
     tool_rounds: int = 0
     task_rounds: int = 0
     last_status_label: str = "Nestor réfléchit…"
+    tools_called: set[str] = field(default_factory=set)
+    pending_subagent: str | None = None
+    subagents_invoked: list[str] = field(default_factory=list)
+    last_task_result_chars: int = 0
+    active_subagents: dict[str, _ActiveSubagent] = field(default_factory=dict)
 
 
 class AgentRunner:
@@ -95,39 +119,123 @@ class AgentRunner:
         context: NamRuntimeContext,
         *,
         user_question: str | None = None,
+        thread_id: str | None = None,
     ) -> AsyncIterator[ChatStreamEvent]:
-        """Exécute l'agent, envoie des statuts pendant l'attente, puis la réponse finale."""
         config = self._langgraph_config(context)
         state = _StreamState()
         question = (user_question or message).strip()
+        tid = thread_id or context.thread_id
 
-        yield ChatStreamEvent(type="status", status="thinking")
+        logger.info(
+            "chat.turn.start thread_id=%s user_id=%s question=%.120s",
+            tid,
+            context.user_id,
+            question,
+        )
 
-        async for event in self._run_graph_updates(message, context, config, state):
+        yield ChatStreamEvent(type="status", status="thinking", thread_id=tid)
+
+        async for event in self._run_graph_updates(message, context, config, state, tid):
             yield event
 
         try:
-            final = await self._pick_final_assistant_text(config)
-            if _needs_synthesis_nudge(final, state):
-                state.last_status_label = "Rédaction de la synthèse…"
-                yield ChatStreamEvent(type="status", status="thinking")
+            messages = await self._get_thread_messages(config)
+            turn_start = find_turn_start_index(messages, question)
+            final = pick_turn_assistant_text(messages, turn_start)
+            if state.task_rounds == 0:
+                state.last_task_result_chars = max(
+                    state.last_task_result_chars, task_tool_result_chars(messages)
+                )
+            prior_task_pending = find_unsynthesized_task_index(messages) is not None
+
+            if _needs_delegation_nudge(final, state):
+                reason = "missing_market_api_fiction" if text_claims_missing_market_data_access(final) else "no_task"
+                logger.warning(
+                    "chat.delegation.nudge thread_id=%s reason=%s tools=%s",
+                    tid,
+                    reason,
+                    sorted(state.tools_called),
+                )
+                state.last_status_label = "Délégation à un expert…"
+                yield ChatStreamEvent(type="status", status="thinking", thread_id=tid)
                 async for event in self._run_graph_updates(
-                    build_synthesis_nudge(question),
+                    build_delegation_nudge(question),
                     context,
                     config,
                     state,
+                    tid,
                 ):
                     yield event
-                final = await self._pick_final_assistant_text(config)
+                messages = await self._get_thread_messages(config)
+                turn_start = find_turn_start_index(messages, question)
+                final = pick_turn_assistant_text(messages, turn_start)
+                prior_task_pending = find_unsynthesized_task_index(messages) is not None
 
-            response = _prepare_user_text(final) or REPONSE_VIDE_SECOURS
+            if _needs_synthesis_nudge(final, state, messages):
+                reason = "async_wait_fiction" if text_claims_async_subagent_wait(final) else "thin_or_missing"
+                logger.info(
+                    "chat.synthesis.nudge thread_id=%s reason=%s final_chars=%d "
+                    "task_result_chars=%d prior_task_pending=%s",
+                    tid,
+                    reason,
+                    len(final.strip()),
+                    state.last_task_result_chars,
+                    prior_task_pending,
+                )
+                state.last_status_label = "Rédaction de la synthèse…"
+                yield ChatStreamEvent(type="status", status="thinking", thread_id=tid)
+                async for event in self._run_graph_updates(
+                    build_synthesis_nudge(question, from_prior_turn=prior_task_pending),
+                    context,
+                    config,
+                    state,
+                    tid,
+                ):
+                    yield event
+                messages = await self._get_thread_messages(config)
+                turn_start = find_turn_start_index(messages, question)
+                final = pick_turn_assistant_text(messages, turn_start)
+
+            response = sanitize_user_text(final) or REPONSE_VIDE_SECOURS
+            if text_claims_async_subagent_wait(response or ""):
+                logger.warning(
+                    "chat.async_wait.fiction thread_id=%s — forcing synthesis retry",
+                    tid,
+                )
+                async for event in self._run_graph_updates(
+                    build_synthesis_nudge(question, from_prior_turn=True),
+                    context,
+                    config,
+                    state,
+                    tid,
+                ):
+                    yield event
+                messages = await self._get_thread_messages(config)
+                turn_start = find_turn_start_index(messages, question)
+                final = pick_turn_assistant_text(messages, turn_start)
+                response = sanitize_user_text(final) or REPONSE_VIDE_SECOURS
         except Exception:
-            logger.exception("Chat finalization failed")
+            logger.exception("Chat finalization failed thread_id=%s", tid)
             response = REPONSE_VIDE_SECOURS
 
-        yield ChatStreamEvent(type="status", status="writing")
+        logger.info(
+            "chat.turn.done thread_id=%s task_rounds=%d subagents=%s tools=%s response_chars=%d",
+            tid,
+            state.task_rounds,
+            state.subagents_invoked,
+            sorted(state.tools_called),
+            len(response),
+        )
+        if state.task_rounds == 0 and "fetch_calendar_from_bourso" not in state.tools_called:
+            logger.debug(
+                "chat.turn.no_subagent thread_id=%s tools=%s",
+                tid,
+                sorted(state.tools_called),
+            )
+
+        yield ChatStreamEvent(type="status", status="writing", thread_id=tid)
         for piece in _chunk_for_stream(response):
-            yield ChatStreamEvent(type="token", content=piece)
+            yield ChatStreamEvent(type="token", content=piece, thread_id=tid)
 
     async def _run_graph_updates(
         self,
@@ -135,95 +243,234 @@ class AgentRunner:
         context: NamRuntimeContext,
         config: dict[str, Any],
         state: _StreamState,
+        thread_id: str | None,
     ) -> AsyncIterator[ChatStreamEvent]:
+        """Stream graph progress via LangGraph v2 updates + subgraph namespaces.
+
+        Uses ``stream_mode="updates"`` with ``subgraphs=True`` and ``version="v2"``
+        (Deep Agents streaming doc). Intermediate PM drafts must not reach the user;
+        only status labels are emitted during the graph run. Final text is picked
+        after the graph completes (and optional synthesis nudge).
+        """
         last_ping = time.monotonic()
-        async for namespace, chunk in self._agent.astream(
+        async for item in self._agent.astream(
             {"messages": [{"role": "user", "content": message}]},
             config=config,
             context=context,
             stream_mode=["updates"],
+            subgraphs=True,
+            version="v2",
         ):
+            parsed = _coerce_updates_stream_part(item)
+            if parsed is None:
+                continue
+            namespace, chunk = parsed
+
+            async for event in self._iter_update_events(chunk, state, thread_id, namespace):
+                yield event
+                last_ping = time.monotonic()
+
             now = time.monotonic()
             if now - last_ping >= CHAT_HEARTBEAT_SEC:
                 yield ChatStreamEvent(
                     type="status",
                     status="tool",
                     tool=state.last_status_label,
+                    thread_id=thread_id,
                 )
                 last_ping = now
 
-            if namespace != "updates" or not isinstance(chunk, dict):
+    async def _iter_update_events(
+        self,
+        chunk: dict[str, Any],
+        state: _StreamState,
+        thread_id: str | None,
+        namespace: tuple[str, ...],
+    ) -> AsyncIterator[ChatStreamEvent]:
+        is_subagent = any(segment.startswith("tools:") for segment in namespace)
+
+        if is_subagent:
+            pregel_id = next(
+                (segment.split(":", 1)[1] for segment in namespace if segment.startswith("tools:")),
+                None,
+            )
+            for sub in state.active_subagents.values():
+                if sub.status == "pending":
+                    sub.status = "running"
+                    logger.info(
+                        "subagent.running thread_id=%s subagent=%s pregel=%s",
+                        thread_id,
+                        sub.subagent_type,
+                        pregel_id,
+                    )
+                    break
+            for node_name in chunk:
+                if node_name.startswith("__"):
+                    continue
+                logger.debug(
+                    "chat.subgraph.step thread_id=%s namespace=%s node=%s",
+                    thread_id,
+                    namespace,
+                    node_name,
+                )
+
+        for node_name, node_data in chunk.items():
+            if node_name.startswith("__") or not isinstance(node_data, dict):
                 continue
 
-            async for event in self._iter_update_events(chunk, state):
-                yield event
-                last_ping = time.monotonic()
+            if node_name in MODEL_UPDATE_NODES and not namespace:
+                async for event in self._iter_model_update_events(node_data, state, thread_id):
+                    yield event
+            elif node_name == "tools" and not namespace:
+                async for event in self._iter_tools_update_events(node_data, state, thread_id):
+                    yield event
 
-    async def _iter_update_events(
-        self, chunk: dict[str, Any], state: _StreamState
+    async def _iter_model_update_events(
+        self,
+        node_data: dict[str, Any],
+        state: _StreamState,
+        thread_id: str | None,
     ) -> AsyncIterator[ChatStreamEvent]:
-        if "model" in chunk:
-            for msg in chunk["model"].get("messages", []):
-                if not isinstance(msg, AIMessage):
-                    continue
-                if msg.tool_calls:
-                    for call in msg.tool_calls:
-                        name = (
-                            call.get("name")
-                            if isinstance(call, dict)
-                            else getattr(call, "name", None)
+        for msg in node_data.get("messages", []):
+            if not isinstance(msg, AIMessage):
+                continue
+            if not msg.tool_calls:
+                continue
+            for call in msg.tool_calls:
+                name = (
+                    call.get("name") if isinstance(call, dict) else getattr(call, "name", None)
+                )
+                call_id = call.get("id") if isinstance(call, dict) else getattr(call, "id", None)
+                if isinstance(name, str):
+                    state.tools_called.add(name)
+                if name == "task":
+                    state.task_rounds += 1
+                    args = (
+                        call.get("args", {})
+                        if isinstance(call, dict)
+                        else getattr(call, "args", {}) or {}
+                    )
+                    subagent_type = args.get("subagent_type") if isinstance(args, dict) else None
+                    description = args.get("description", "") if isinstance(args, dict) else ""
+                    if isinstance(subagent_type, str):
+                        state.pending_subagent = subagent_type
+                        state.subagents_invoked.append(subagent_type)
+                        if isinstance(call_id, str):
+                            state.active_subagents[call_id] = _ActiveSubagent(
+                                subagent_type=subagent_type,
+                                description=str(description)[:200],
+                                status="pending",
+                            )
+                        logger.info(
+                            "subagent.pending thread_id=%s subagent=%s call_id=%s description=%.200s",
+                            thread_id,
+                            subagent_type,
+                            call_id,
+                            description,
                         )
-                        if name == "task":
-                            state.task_rounds += 1
-                        label = _libelle_outil(call)
-                        state.last_status_label = label
-                        yield ChatStreamEvent(type="status", status="tool", tool=label)
-        if "tools" in chunk:
-            state.tool_rounds += 1
-            state.last_status_label = "Analyse des résultats…"
-            yield ChatStreamEvent(type="status", status="thinking")
+                label = _libelle_outil(call)
+                state.last_status_label = label
+                yield ChatStreamEvent(
+                    type="status", status="tool", tool=label, thread_id=thread_id
+                )
 
-    async def _pick_final_assistant_text(self, config: dict[str, Any]) -> str:
+    async def _iter_tools_update_events(
+        self,
+        node_data: dict[str, Any],
+        state: _StreamState,
+        thread_id: str | None,
+    ) -> AsyncIterator[ChatStreamEvent]:
+        state.tool_rounds += 1
+        for msg in node_data.get("messages", []):
+            if not isinstance(msg, ToolMessage):
+                continue
+            if getattr(msg, "name", None) == "task":
+                content = msg.content
+                if isinstance(content, str):
+                    state.last_task_result_chars = len(content)
+                elif content is not None:
+                    state.last_task_result_chars = len(str(content))
+                sub = state.active_subagents.get(msg.tool_call_id)
+                if sub:
+                    sub.status = "complete"
+                logger.info(
+                    "subagent.complete thread_id=%s subagent=%s call_id=%s "
+                    "tool_round=%d result_chars=%d preview=%.120s",
+                    thread_id,
+                    state.pending_subagent or (sub.subagent_type if sub else "?"),
+                    msg.tool_call_id,
+                    state.tool_rounds,
+                    state.last_task_result_chars,
+                    content if isinstance(content, str) else str(content),
+                )
+                state.pending_subagent = None
+        state.last_status_label = "Analyse des résultats…"
+        yield ChatStreamEvent(type="status", status="thinking", thread_id=thread_id)
+
+    async def _get_thread_messages(self, config: dict[str, Any]) -> list[Any]:
+        snapshot = await self._agent.aget_state(config)
+        return snapshot.values.get("messages", [])
+
+    async def get_thread_history(
+        self, thread_id: str, *, limit: int = 100
+    ) -> list[dict[str, str]]:
+        from nam_agentic.services.checkpoint_messages import to_chat_history
+
+        config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
         snapshot = await self._agent.aget_state(config)
         messages = snapshot.values.get("messages", [])
-        candidates = _assistant_text_candidates(messages)
-        if not candidates:
-            return ""
-
-        substantive = [
-            text
-            for text in candidates
-            if not _looks_like_internal_draft(text) and not _looks_like_plan_preamble(text)
-        ]
-        pool = substantive or candidates
-        return max(pool, key=lambda text: len(text.strip()))
-
-    async def stream_tokens(
-        self, message: str, context: NamRuntimeContext
-    ) -> AsyncIterator[str]:
-        async for event in self.stream_events(message, context):
-            if event.type == "token" and event.content:
-                yield event.content
+        return to_chat_history(messages, limit=limit)
 
 
-def _assistant_text_candidates(messages: list[Any]) -> list[str]:
-    results: list[str] = []
-    for msg in reversed(messages):
-        if not isinstance(msg, AIMessage) or msg.tool_calls:
-            continue
-        text = _message_text(msg)
-        if text:
-            results.append(text)
-    return results
+def _coerce_updates_stream_part(item: Any) -> tuple[tuple[str, ...], dict[str, Any]] | None:
+    """Normalize LangGraph v2 StreamPart or legacy tuple chunks to (namespace, data)."""
+    if isinstance(item, dict) and item.get("type") == "updates":
+        data = item.get("data")
+        if isinstance(data, dict):
+            ns = item.get("ns") or ()
+            return (tuple(ns), data)
+        return None
+    if isinstance(item, tuple):
+        if len(item) == 3:
+            ns, mode, data = item
+            if mode == "updates" and isinstance(data, dict):
+                return (tuple(ns) if ns else (), data)
+        elif len(item) == 2:
+            mode, data = item
+            if mode == "updates" and isinstance(data, dict):
+                return ((), data)
+    return None
 
 
-def _needs_synthesis_nudge(text: str, state: _StreamState) -> bool:
-    if state.task_rounds == 0 and state.tool_rounds == 0:
-        return False
+def _needs_synthesis_nudge(text: str, state: _StreamState, messages: list[Any]) -> bool:
+    """Re-run the PM when synthesis is missing, too thin, or architecturally invalid."""
     stripped = text.strip()
+    if text_claims_async_subagent_wait(stripped):
+        return True
+    if find_unsynthesized_task_index(messages) is not None and (
+        state.task_rounds == 0 or len(stripped) < MIN_POST_TASK_SYNTHESIS_CHARS
+    ):
+        return True
+    if state.task_rounds == 0:
+        return False
     if not stripped:
         return True
-    return _looks_like_plan_preamble(stripped) or _looks_like_internal_draft(stripped)
+    if state.last_task_result_chars and len(stripped) < state.last_task_result_chars * 0.25:
+        return True
+    return len(stripped) < MIN_POST_TASK_SYNTHESIS_CHARS
+
+
+def _needs_delegation_nudge(text: str, state: _StreamState) -> bool:
+    """PM tried to answer without task() — force a delegation pass."""
+    if state.task_rounds > 0:
+        return False
+    if text_claims_missing_market_data_access(text) or text_claims_async_subagent_wait(text):
+        return True
+    if text.strip():
+        return False
+    if state.tools_called <= {"fetch_calendar_from_bourso"}:
+        return False
+    return True
 
 
 def _libelle_outil(call: object) -> str:
@@ -254,101 +501,3 @@ def _chunk_for_stream(text: str, size: int = 48) -> list[str]:
         pieces.append(text[start:end])
         start = end
     return pieces
-
-
-def _message_text(message: AIMessage) -> str:
-    content = message.content
-    if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
-        parts: list[str] = []
-        for part in content:
-            if isinstance(part, str):
-                parts.append(part)
-            elif isinstance(part, dict):
-                part_type = part.get("type")
-                if part_type == "text":
-                    text = part.get("text")
-                    if isinstance(text, str):
-                        parts.append(text)
-        return "".join(parts).strip()
-    return str(content).strip() if content else ""
-
-
-_INTERNAL_DRAFT_MARKERS = (
-    "Here is the plan",
-    "Before providing any analysis",
-    "I must structure",
-    "Cross-Desk Ask",
-    "The initial request is",
-    "I must correct",
-    "J'ai oublié",
-    "J'ai tenté de lancer",
-)
-
-_PLAN_PREAMBLE_MARKERS = (
-    "plan d'action",
-    "je vais commencer",
-    "afin de procéder",
-    "établir un plan",
-    "voici le plan",
-    "je vais solliciter",
-    "structured action plan",
-    "here is the plan",
-)
-
-_TOOL_DUMP_MARKERS = (
-    "YahooNewsItem(",
-    "PositionItem(",
-    "GetPortfolioPositionsOutput",
-    "yahoo_symbol=",
-    "resolved_from_db=",
-)
-
-_PROSE_AFTER_DUMP = re.compile(
-    r"(J'|J'ai|En |Voici|Bilan|Oui|Non,|Pour |Mon |Votre |Les |D'après|Ces |"
-    r"Verdict|Résumé|Synthèse|Recommandation)",
-)
-
-_UUID_PATTERN = re.compile(
-    r"UUID\(['\"][0-9a-f-]{36}['\"]\)|\b[0-9a-f]{8}-[0-9a-f-]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
-    re.IGNORECASE,
-)
-_LATEX_TEXT_PATTERN = re.compile(r"\$\\text\{([^}]+)\}\$")
-_LATEX_INLINE_PATTERN = re.compile(r"\$([^$\\]+)\$")
-
-
-def _looks_like_internal_draft(text: str) -> bool:
-    return any(marker in text for marker in _INTERNAL_DRAFT_MARKERS)
-
-
-def _looks_like_plan_preamble(text: str) -> bool:
-    lowered = text.lower().strip()
-    if len(lowered) > 500:
-        return False
-    return any(marker in lowered for marker in _PLAN_PREAMBLE_MARKERS)
-
-
-def _prepare_user_text(text: str | None, *, aggressive: bool = True) -> str | None:
-    if not text:
-        return None
-    cleaned = _sanitize_stream_token(text, aggressive=aggressive)
-    if not cleaned:
-        return None
-    cleaned = _UUID_PATTERN.sub("", cleaned)
-    cleaned = _LATEX_TEXT_PATTERN.sub(r"\1", cleaned)
-    cleaned = _LATEX_INLINE_PATTERN.sub(r"\1", cleaned)
-    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    return cleaned.strip() or None
-
-
-def _sanitize_stream_token(text: str | None, *, aggressive: bool = True) -> str | None:
-    if not text:
-        return None
-    if not aggressive or not any(marker in text for marker in _TOOL_DUMP_MARKERS):
-        return text
-    match = _PROSE_AFTER_DUMP.search(text)
-    if match and match.start() > 0:
-        return text[match.start() :].lstrip() or text
-    return text

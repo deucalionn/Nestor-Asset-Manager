@@ -1,4 +1,5 @@
 from nam_db.models.analysis import Analysis
+from nam_db.models.chat_thread import ChatThread
 from nam_db.models.index import Index
 from nam_db.models.news_item import NewsItem
 from nam_db.models.position import Position
@@ -14,4 +15,5 @@ __all__ = [
     "Position",
     "Analysis",
     "Recommendation",
+    "ChatThread",
 ]

@@ -14,7 +14,7 @@ from nam_agentic.tools.schemas.portfolio import (
     GetPortfolioPositionsOutput,
     PositionItem,
 )
-from nam_agentic.tools.services.market_price import MarketPriceProvider
+from nam_yahoo import MarketPriceProvider
 
 
 class GetPortfolioPositionsTool(BaseNamTool):

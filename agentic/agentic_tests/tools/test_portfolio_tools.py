@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -6,8 +7,9 @@ from nam_agentic.tools.portfolio.get_index import GetIndexTool
 from nam_agentic.tools.portfolio.get_positions import GetPortfolioPositionsTool
 from nam_agentic.tools.portfolio.get_user_context import GetUserContextTool
 from nam_agentic.tools.portfolio.list_indices import ListIndicesTool
-from nam_agentic.tools.services.market_price import FakeMarketPriceProvider
+from nam_yahoo import FakeMarketPriceProvider, StubMarketPriceProvider
 from nam_db.models.index import Index
+from nam_db.models.position import Position
 from nam_db.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from support.helpers import as_dict
@@ -40,8 +42,8 @@ async def test_get_portfolio_positions_gain_loss_pct(
     assert len(result["positions"]) == 1
     position = result["positions"][0]
     assert position["gain_loss_pct"] == pytest.approx(10.0)
-    assert position["current_price"] == "110"
-    assert result["total_market_value"] == "1100"
+    assert Decimal(position["current_price"]) == Decimal("110")
+    assert Decimal(result["total_market_value"]) == Decimal("1100")
     assert result["total_market_value_is_complete"] is True
 
 
@@ -52,12 +54,9 @@ async def test_get_portfolio_positions_partial_total_when_price_missing(
     test_position,
     db_session: AsyncSession,
 ) -> None:
-    from nam_agentic.tools.services.market_price import StubMarketPriceProvider
-
     other = Index(name="No Price Co", isin="FR0000000001")
     db_session.add(other)
     await db_session.flush()
-    from nam_db.models.position import Position
 
     db_session.add(
         Position(
@@ -65,6 +64,7 @@ async def test_get_portfolio_positions_partial_total_when_price_missing(
             index_id=other.id,
             quantity=Decimal("5"),
             average_cost=Decimal("10"),
+            last_update=datetime.now(UTC),
         )
     )
     await db_session.commit()
@@ -74,7 +74,7 @@ async def test_get_portfolio_positions_partial_total_when_price_missing(
     result = as_dict(await tool.ainvoke({}))
 
     assert len(result["positions"]) == 2
-    assert result["total_market_value"] == "1100"
+    assert Decimal(result["total_market_value"]) == Decimal("1100")
     assert result["total_market_value_is_complete"] is False
 
 
@@ -82,8 +82,6 @@ async def test_get_portfolio_positions_empty(
     session_factory: async_sessionmaker[AsyncSession],
     test_user: User,
 ) -> None:
-    from nam_agentic.tools.services.market_price import StubMarketPriceProvider
-
     tool = GetPortfolioPositionsTool(
         session_factory, test_user.id, StubMarketPriceProvider()
     ).as_tool()

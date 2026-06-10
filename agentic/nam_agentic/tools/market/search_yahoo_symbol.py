@@ -3,8 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.tools.base import BaseNamTool
 from nam_agentic.tools.schemas.market import SearchYahooSymbolInput, SearchYahooSymbolOutput
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
+from nam_yahoo import YfinanceClient, YahooIndexResolver
 
 
 class SearchYahooSymbolTool(BaseNamTool):

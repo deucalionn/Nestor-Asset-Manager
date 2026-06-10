@@ -13,8 +13,7 @@ from nam_agentic.tools.schemas.market import (
     GetAssetNewsFromYfOutput,
     YahooNewsItem,
 )
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
+from nam_yahoo import YfinanceClient, YahooIndexResolver
 
 
 class GetAssetNewsFromYfTool(BaseNamTool):
@@ -38,11 +37,11 @@ class GetAssetNewsFromYfTool(BaseNamTool):
             yahoo_symbol: str | None = None,
             limit: int = 10,
         ) -> GetAssetNewsFromYfOutput:
-            """Fetch live ticker news from Yahoo Finance.
+            """Fetch recent ticker headlines from Yahoo Finance.
 
-            Use when: you need fresh headlines for a specific symbol from Yahoo.
-            Do not use when: you need Bourso macro headlines from SQL cache —
-            use get_financials_news_from_bourso instead.
+            Use when: you need headlines for a specific symbol.
+            Headlines are available anytime — market session open/closed does not matter.
+            Do not use when: Bourso macro cache suffices — use get_financials_news_from_bourso.
             Pass exactly ONE of index_id, isin (from get_index), or yahoo_symbol — not several.
             Returns: list of Yahoo headlines (title, link, publisher, published_at).
             """

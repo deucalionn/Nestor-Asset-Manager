@@ -5,7 +5,7 @@ from nam_agentic.agents.portfolio_manager import PortfolioManagerAgent
 from nam_agentic.agents.sector_analyst import SectorAnalystAgent
 from nam_agentic.context import NamRuntimeContext
 from nam_agentic.tools.registry import ToolRegistry
-from nam_agentic.tools.services.market_price import StubMarketPriceProvider
+from nam_yahoo import StubMarketPriceProvider
 from nam_db.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -36,10 +36,6 @@ async def test_portfolio_manager_tools(
         "create_index",
         "create_recommendation",
         "fetch_calendar_from_bourso",
-        "get_financials_news_from_bourso",
-        "get_asset_news_from_yf",
-        "search_boursorama",
-        "get_data_from_url",
     }
 
 

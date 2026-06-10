@@ -5,15 +5,20 @@ import pandas as pd
 import pytest
 from nam_agentic.tools.market.get_asset_price_from_yf import GetAssetPriceFromYfTool
 from nam_agentic.tools.market.get_company_financials_from_yf import GetCompanyFinancialsFromYfTool
-from nam_agentic.tools.services.market_price import YfinanceMarketPriceProvider
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.errors import YahooSymbolNotFoundError
-from nam_agentic.tools.market.yahoo_helpers import normalize_yahoo_news_item, normalize_yahoo_news_items
+from nam_agentic.tools.market.yahoo_helpers import (
+    normalize_yahoo_news_item,
+    normalize_yahoo_news_items,
+)
 from nam_agentic.tools.schemas.market import GetAssetNewsFromYfInput
-from nam_agentic.tools.services.yahoo.lookup import dataframe_to_lookup_rows, pick_lookup_row
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
 from nam_db.enums import IndexType
 from nam_db.models.index import Index
+from nam_yahoo import (
+    YahooIndexResolver,
+    YahooSymbolNotFoundError,
+    YfinanceClient,
+    YfinanceMarketPriceProvider,
+)
+from nam_yahoo.lookup import dataframe_to_lookup_rows, pick_lookup_row
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 pytestmark = pytest.mark.asyncio
@@ -219,7 +224,7 @@ async def test_yahoo_resolver_stellantis_isin_lookup(
 async def test_yfinance_client_uses_to_thread() -> None:
     client = YfinanceClient()
     with patch(
-        "nam_agentic.tools.services.yahoo.client.asyncio.to_thread",
+        "nam_yahoo.client.asyncio.to_thread",
         new_callable=AsyncMock,
     ) as mock_thread:
         mock_thread.return_value = _lookup_df()

@@ -37,8 +37,6 @@ class Settings(BaseSettings):
     boursorama_send_referer: bool = True
     news_format_max_chars: int = 12_000
     news_format_llm_enabled: bool = True
-    yahoo_resolve_prefer_suffix: str = ".PA"
-    yahoo_request_timeout_sec: int = 30
 
 
 settings = Settings()

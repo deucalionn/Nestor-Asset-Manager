@@ -1,0 +1,293 @@
+.section {
+  margin-top: 2.5rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.tabs {
+  display: inline-flex;
+  padding: 0.1875rem;
+  border-radius: 0.5rem;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: 0.375rem 0.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tabActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.loading,
+.error,
+.empty {
+  padding: 1.25rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  padding: 1rem 1.125rem;
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badgeBuy {
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: #15803d;
+}
+
+.badgeHold {
+  background: color-mix(in srgb, var(--color-text-muted) 16%, transparent);
+  color: var(--color-text-muted);
+}
+
+.badgeSell {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.status {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.statusPending {
+  color: #b45309;
+  font-weight: 500;
+}
+
+.statusApplied {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.statusRejected {
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+.date {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.content {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.analyses {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.analysesToggle {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-accent-dark);
+  cursor: pointer;
+}
+
+.analysesToggle:hover {
+  text-decoration: underline;
+}
+
+.analysesList {
+  margin-top: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.analysisItem {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.userComment {
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-bg-subtle);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.commentField {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.commentLabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.commentInput {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  resize: vertical;
+  min-height: 2.25rem;
+}
+
+.commentInput:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  border-color: var(--color-accent);
+}
+
+.actionButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.acceptBtn,
+.rejectBtn {
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.acceptBtn {
+  background: var(--color-accent);
+  color: white;
+}
+
+.acceptBtn:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+}
+
+.rejectBtn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.rejectBtn:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.acceptBtn:disabled,
+.rejectBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cardError {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-danger);
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .date {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButtons {
+    justify-content: stretch;
+  }
+
+  .acceptBtn,
+  .rejectBtn {
+    flex: 1;
+  }
+}

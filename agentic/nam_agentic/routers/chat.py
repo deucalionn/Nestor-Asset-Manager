@@ -10,7 +10,6 @@ from nam_agentic.context import NamRuntimeContext
 from nam_agentic.enums import MarketPhase
 from nam_agentic.runtime import get_agent_runner
 from nam_agentic.schemas.chat import ChatStreamEvent, ChatStreamRequest
-from nam_agentic.services.chat_prompt import build_chat_message
 from nam_agentic.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -37,17 +36,21 @@ async def chat_stream(body: ChatStreamRequest) -> StreamingResponse:
     async def events() -> AsyncIterator[ChatStreamEvent]:
         try:
             async for event in runner.stream_events(
-                build_chat_message(body.content),
+                body.content,
                 context=context,
                 user_question=body.content,
+                thread_id=thread_id,
             ):
                 if event.type == "token":
-                    yield ChatStreamEvent(type="token", content=event.content)
+                    yield ChatStreamEvent(
+                        type="token", content=event.content, thread_id=thread_id
+                    )
                 elif event.type == "status":
                     yield ChatStreamEvent(
                         type="status",
                         status=event.status,
                         tool=event.tool,
+                        thread_id=thread_id,
                     )
             yield ChatStreamEvent(type="done", thread_id=thread_id)
         except Exception as exc:

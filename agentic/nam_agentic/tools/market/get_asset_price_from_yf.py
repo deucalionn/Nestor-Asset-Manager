@@ -6,10 +6,10 @@ from langchain_core.tools import BaseTool, tool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.tools.base import BaseNamTool
+from nam_agentic.tools.errors import ToolError
 from nam_agentic.tools.market.yahoo_helpers import price_from_fast_info
 from nam_agentic.tools.schemas.market import GetAssetPriceFromYfInput, GetAssetPriceFromYfOutput
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
+from nam_yahoo import YfinanceClient, YahooDataUnavailableError, YahooIndexResolver
 
 
 class GetAssetPriceFromYfTool(BaseNamTool):
@@ -43,7 +43,14 @@ class GetAssetPriceFromYfTool(BaseNamTool):
                 isin=isin,
                 yahoo_symbol=yahoo_symbol,
             )
-            fast_info = await client.get_fast_info(resolved.yahoo_symbol)
+            try:
+                fast_info = await client.get_fast_info(resolved.yahoo_symbol)
+            except (YahooDataUnavailableError, KeyError) as exc:
+                raise ToolError(
+                    f"Could not fetch price for {resolved.yahoo_symbol!r}. "
+                    "Call search_yahoo_symbol with the company name first, then retry "
+                    "get_asset_price_from_yf with the resolved yahoo_symbol."
+                ) from exc
             previous = fast_info.get("previousClose")
             return GetAssetPriceFromYfOutput(
                 yahoo_symbol=resolved.yahoo_symbol,

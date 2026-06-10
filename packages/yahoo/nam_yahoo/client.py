@@ -7,8 +7,8 @@ from typing import Any
 import pandas as pd
 from yfinance import Lookup, Ticker
 
-from nam_agentic.settings import settings
-from nam_agentic.tools.services.yahoo.errors import YahooDataUnavailableError
+from nam_yahoo.errors import YahooDataUnavailableError
+from nam_yahoo.settings import settings
 
 
 @dataclass(frozen=True)
@@ -26,12 +26,7 @@ class YfinanceClient:
         self._timeout_sec = timeout_sec or settings.yahoo_request_timeout_sec
 
     async def lookup(self, query: str) -> pd.DataFrame:
-        """Resolve an ISIN or name to Yahoo ticker candidates via yfinance ``Lookup``.
-
-        Runs off the event loop (``asyncio.to_thread``). Returns the raw
-        ``get_all()`` DataFrame; pass it through ``lookup.dataframe_to_lookup_rows``,
-        ``filter_by_index_type``, and ``pick_lookup_row`` for disambiguation.
-        """
+        """Resolve an ISIN or name to Yahoo ticker candidates via yfinance ``Lookup``."""
         return await asyncio.to_thread(self._lookup_sync, query)
 
     async def get_fast_info(self, symbol: str) -> dict[str, Any]:
