@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from nam_api.error_handlers import app_error_handler
 from nam_api.exceptions import AppError
-from nam_api.routers import analyses, health, indices, portfolio, profile, recommendations
+from nam_api.routers import analyses, chat_threads, health, indices, portfolio, profile, recommendations
 from nam_api.websocket import chat as chat_ws
 
 
@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
         portfolio.positions_router,
         analyses.router,
         recommendations.router,
+        chat_threads.router,
     ]
     for router in routers:
         app.include_router(router)
