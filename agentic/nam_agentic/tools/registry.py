@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from langchain_core.tools import BaseTool
+from nam_yahoo import MarketPriceProvider, YfinanceClient, YfinanceMarketPriceProvider
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nam_agentic.context import NamRuntimeContext
@@ -26,8 +27,6 @@ from nam_agentic.tools.portfolio.get_user_context import GetUserContextTool
 from nam_agentic.tools.portfolio.list_indices import ListIndicesTool
 from nam_agentic.tools.services.analysis_search import AnalysisSearchService
 from nam_agentic.tools.services.embedding import EmbeddingService, OllamaEmbeddingService
-from nam_agentic.tools.services.market_price import MarketPriceProvider, YfinanceMarketPriceProvider
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
 
 
 class ToolRegistry:

@@ -8,9 +8,9 @@ from nam_db.models.index import Index
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.errors import YahooSymbolNotFoundError
-from nam_agentic.tools.services.yahoo.lookup import (
+from nam_yahoo.client import YfinanceClient
+from nam_yahoo.errors import YahooSymbolNotFoundError
+from nam_yahoo.lookup import (
     dataframe_to_lookup_rows,
     filter_by_index_type,
     pick_lookup_row,

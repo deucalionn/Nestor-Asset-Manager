@@ -1,7 +1,7 @@
 import pytest
 from nam_agentic.context import NamRuntimeContext
 from nam_agentic.tools.registry import ToolRegistry
-from nam_agentic.tools.services.market_price import StubMarketPriceProvider
+from nam_yahoo import StubMarketPriceProvider
 from nam_db.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 

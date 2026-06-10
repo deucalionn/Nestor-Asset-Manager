@@ -12,9 +12,7 @@ from nam_agentic.tools.schemas.market import (
     GetCompanyFinancialsFromYfInput,
     GetCompanyFinancialsFromYfOutput,
 )
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.errors import YahooDataUnavailableError
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
+from nam_yahoo import YfinanceClient, YahooDataUnavailableError, YahooIndexResolver
 
 
 class GetCompanyFinancialsFromYfTool(BaseNamTool):

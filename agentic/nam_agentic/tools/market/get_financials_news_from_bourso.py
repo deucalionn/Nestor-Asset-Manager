@@ -41,11 +41,11 @@ class GetFinancialsNewsFromBoursoTool(BaseNamTool):
             limit: int = 20,
             min_similarity: float = 0.7,
         ) -> GetFinancialsNewsOutput:
-            """Read cached Boursorama news and calendars from PostgreSQL.
+            """Read cached Boursorama news from PostgreSQL (recent window, default 48h).
 
             Use when: macro brief, market headlines, ETF context, or semantic news recall.
-            Do not use when: you need live Yahoo ticker news — use get_asset_news_from_yf.
-            Do not use when: you need a fresh article not yet cached — use get_data_from_url first.
+            Works anytime — market closed does not block cached headlines.
+            Do not use when: you need Yahoo ticker headlines — use get_asset_news_from_yf.
             Returns: list of news items (title, summary, category, dates) newest or by similarity.
             """
             async with session_factory() as session:

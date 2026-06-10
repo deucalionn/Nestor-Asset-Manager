@@ -11,8 +11,7 @@ from nam_agentic.tools.schemas.market import (
     GetAssetHistoryFromYfOutput,
     HistoryBar,
 )
-from nam_agentic.tools.services.yahoo.client import YfinanceClient
-from nam_agentic.tools.services.yahoo.resolver import YahooIndexResolver
+from nam_yahoo import YfinanceClient, YahooIndexResolver
 
 
 class GetAssetHistoryFromYfTool(BaseNamTool):
